@@ -1,6 +1,4 @@
 // chfs client.  implements FS operations using extent and lock server
-#include "chfs_client.h"
-#include "extent_client.h"
 #include <sstream>
 #include <iostream>
 #include <stdio.h>
@@ -8,6 +6,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+#include "chfs_client.h"
+#include "extent_client.h"
+
+/* 
+ * Your code here for Lab2A:
+ * Here we treat each ChFS operation(especially write operation such as 'create', 
+ * 'write' and 'symlink') as a transaction, your job is to use write ahead log 
+ * to achive all-or-nothing for these transactions.
+ */
 
 chfs_client::chfs_client()
 {
@@ -139,7 +147,9 @@ release:
     } while (0)
 
 // Only support set size of attr
-int chfs_client::setattr(inum ino, size_t size)
+// Your code here for Lab2A: add logging to ensure atomicity
+int
+chfs_client::setattr(inum ino, size_t size)
 {
     int r = OK;
 
@@ -158,7 +168,9 @@ int chfs_client::setattr(inum ino, size_t size)
     return r;
 }
 
-int chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
+// Your code here for Lab2A: add logging to ensure atomicity
+int
+chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
 {
     int r = OK;
 
@@ -185,7 +197,9 @@ int chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_ou
     return r;
 }
 
-int chfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
+// Your code here for Lab2A: add logging to ensure atomicity
+int
+chfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
 {
     int r = OK;
 
@@ -309,8 +323,10 @@ int chfs_client::read(inum ino, size_t size, off_t off, std::string &data)
     return r;
 }
 
-int chfs_client::write(inum ino, size_t size, off_t off, const char *data,
-                       size_t &bytes_written)
+// Your code here for Lab2A: add logging to ensure atomicity
+int
+chfs_client::write(inum ino, size_t size, off_t off, const char *data,
+        size_t &bytes_written)
 {
     int r = OK;
     printf("chfs_client::write file:%lld off:%ld size:%ld", ino,off,size);
@@ -343,7 +359,8 @@ int chfs_client::write(inum ino, size_t size, off_t off, const char *data,
     return r;
 }
 
-int chfs_client::unlink(inum parent, const char *name)
+// Your code here for Lab2A: add logging to ensure atomicity
+int chfs_client::unlink(inum parent,const char *name)
 {
     int r = OK;
 
