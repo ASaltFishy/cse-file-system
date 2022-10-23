@@ -122,16 +122,28 @@ int test_indirect()
                 return 1;
             }
         }
-
+        int total_size = 0;
         for (i = 0; i < FILE_NUM; i++) {
             std::string buf;
             if (ec->get(id_list[i], buf) != extent_protocol::OK) {
                 printf("error get, return not OK\n");
                 return 2;
             }
+            total_size+=content[i].size();
             if (buf.compare(content[i]) != 0) {
                 std::cout << "error get large file, not consistent with put large file : " << 
                     buf << " <-> " << content[i] << "\n";
+
+                // std::cout << "error get large file, not consistent with put large file : " <<"total size: "<<total_size<< "\n";
+                // //for debug
+                // FILE *fp;
+                // fp = fopen("buf.txt","w");
+                // fprintf(fp,"%s",buf.c_str());
+                // fclose(fp);
+                // fp = fopen("conten.txt","w");
+                // fprintf(fp,"%s",content[i].c_str());
+                // fclose(fp);
+
                 return 3;
             }
         }
