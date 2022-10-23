@@ -1,6 +1,4 @@
 // chfs client.  implements FS operations using extent and lock server
-#include "chfs_client.h"
-#include "extent_client.h"
 #include <sstream>
 #include <iostream>
 #include <stdio.h>
@@ -9,10 +7,19 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "chfs_client.h"
+#include "extent_client.h"
+
+/* 
+ * Your code here for Lab2A:
+ * Here we treat each ChFS operation(especially write operation such as 'create', 
+ * 'write' and 'symlink') as a transaction, your job is to use write ahead log 
+ * to achive all-or-nothing for these transactions.
+ */
+
 chfs_client::chfs_client()
 {
     ec = new extent_client();
-
 }
 
 chfs_client::chfs_client(std::string extent_dst, std::string lock_dst)
@@ -22,6 +29,7 @@ chfs_client::chfs_client(std::string extent_dst, std::string lock_dst)
         printf("error init root dir\n"); // XYB: init root dir
 }
 
+// transfer the inum in string to unsigned long
 chfs_client::inum
 chfs_client::n2i(std::string n)
 {
@@ -39,44 +47,61 @@ chfs_client::filename(inum inum)
     return ost.str();
 }
 
-bool
-chfs_client::isfile(inum inum)
+bool chfs_client::isfile(inum inum)
 {
     extent_protocol::attr a;
 
-    if (ec->getattr(inum, a) != extent_protocol::OK) {
+    if (ec->getattr(inum, a) != extent_protocol::OK)
+    {
         printf("error getting attr\n");
         return false;
     }
 
-    if (a.type == extent_protocol::T_FILE) {
+    if (a.type == extent_protocol::T_FILE)
+    {
         printf("isfile: %lld is a file\n", inum);
         return true;
-    } 
+    }
     printf("isfile: %lld is a dir\n", inum);
     return false;
 }
 /** Your code here for Lab...
  * You may need to add routines such as
  * readlink, issymlink here to implement symbolic link.
- * 
+ *
  * */
 
-bool
-chfs_client::isdir(inum inum)
+bool chfs_client::isdir(inum inum)
 {
     // Oops! is this still correct when you implement symlink?
-    return ! isfile(inum);
+    extent_protocol::attr a;
+
+    if (ec->getattr(inum, a) != extent_protocol::OK)
+    {
+        printf("error getting attr\n");
+        return false;
+    }
+
+    if (a.type == extent_protocol::T_DIR)
+    {
+        printf("isdir: %lld is a dir\n", inum);
+        return true;
+    }
+    return false;
 }
 
-int
-chfs_client::getfile(inum inum, fileinfo &fin)
+bool chfs_client::islink(inum inum){
+    return !(isfile(inum)|isdir(inum));
+}
+
+int chfs_client::getfile(inum inum, fileinfo &fin)
 {
     int r = OK;
 
     printf("getfile %016llx\n", inum);
     extent_protocol::attr a;
-    if (ec->getattr(inum, a) != extent_protocol::OK) {
+    if (ec->getattr(inum, a) != extent_protocol::OK)
+    {
         r = IOERR;
         goto release;
     }
@@ -91,14 +116,14 @@ release:
     return r;
 }
 
-int
-chfs_client::getdir(inum inum, dirinfo &din)
+int chfs_client::getdir(inum inum, dirinfo &din)
 {
     int r = OK;
 
     printf("getdir %016llx\n", inum);
     extent_protocol::attr a;
-    if (ec->getattr(inum, a) != extent_protocol::OK) {
+    if (ec->getattr(inum, a) != extent_protocol::OK)
+    {
         r = IOERR;
         goto release;
     }
@@ -110,18 +135,25 @@ release:
     return r;
 }
 
-
-#define EXT_RPC(xx) do { \
-    if ((xx) != extent_protocol::OK) { \
-        printf("EXT_RPC Error: %s:%d \n", __FILE__, __LINE__); \
-        r = IOERR; \
-        goto release; \
-    } \
-} while (0)
+#define EXT_RPC(xx)                                                \
+    do                                                             \
+    {                                                              \
+        if ((xx) != extent_protocol::OK)                           \
+        {                                                          \
+            printf("EXT_RPC Error: %s:%d \n", __FILE__, __LINE__); \
+            r = IOERR;                                             \
+            goto release;                                          \
+        }                                                          \
+    } while (0)
 
 // Only support set size of attr
+<<<<<<< HEAD
+// Your code here for Lab2A: add logging to ensure atomicity
 int
 chfs_client::setattr(inum ino, size_t size)
+=======
+int chfs_client::setattr(inum ino, size_t size)
+>>>>>>> lab1
 {
     int r = OK;
 
@@ -130,12 +162,23 @@ chfs_client::setattr(inum ino, size_t size)
      * note: get the content of inode ino, and modify its content
      * according to the size (<, =, or >) content length.
      */
+    std::string buf;
+    r = ec->get(ino, buf);
+    if (r != xxstatus::OK)
+        return r;
 
+    buf.resize(size);
+    r = ec->put(ino, buf);
     return r;
 }
 
+<<<<<<< HEAD
+// Your code here for Lab2A: add logging to ensure atomicity
 int
 chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
+=======
+int chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
+>>>>>>> lab1
 {
     int r = OK;
 
@@ -144,12 +187,31 @@ chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
      * note: lookup is what you need to check if file exist;
      * after create file or dir, you must remember to modify the parent infomation.
      */
+    bool found = false;
+    r = lookup(parent, name, found, ino_out);
+    if (r == IOERR)
+    {
+        printf("chfs_client::create: no such parent dir,make now\n");
+        return r;
+    }
+    if (found)
+        return EXIST;
 
+    r = ec->create(extent_protocol::T_FILE, ino_out);
+    std::string buf;
+    r = ec->get(parent, buf);
+    buf.append(std::string(name) + '\0' + filename(ino_out) + '/');
+    r = ec->put(parent, buf);
     return r;
 }
 
+<<<<<<< HEAD
+// Your code here for Lab2A: add logging to ensure atomicity
 int
 chfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
+=======
+int chfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
+>>>>>>> lab1
 {
     int r = OK;
 
@@ -158,26 +220,54 @@ chfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
      * note: lookup is what you need to check if directory exist;
      * after create file or dir, you must remember to modify the parent infomation.
      */
+    bool found = false;
+    r = lookup(parent, name, found, ino_out);
+    if (r == IOERR)
+    {
+        printf("chfs_client::create: no such parent dir,make now\n");
+        return r;
+    }
+    if (found)
+        return EXIST;
 
+    r = ec->create(extent_protocol::T_DIR, ino_out);
+    std::string buf;
+    r = ec->get(parent, buf);
+    buf.append(std::string(name) + '\0' + filename(ino_out) + '/');
+    r = ec->put(parent, buf);
     return r;
 }
 
-int
-chfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
+int chfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
 {
     int r = OK;
+    found = false;
 
     /*
      * your code goes here.
      * note: lookup file from parent dir according to name;
      * you should design the format of directory content.
      */
+    std::list<dirent> list;
+    r = readdir(parent, list);
+    if (r != OK)
+    {
+        return r;
+    }
 
-    return r;
+    for (std::list<dirent>::iterator it = list.begin(); it != list.end(); ++it)
+    {
+        if (it->name.compare(name) == 0)
+        {
+            found = true;
+            ino_out = it->inum;
+            return OK;
+        }
+    }
+    return NOENT;
 }
 
-int
-chfs_client::readdir(inum dir, std::list<dirent> &list)
+int chfs_client::readdir(inum dir, std::list<dirent> &list)
 {
     int r = OK;
 
@@ -187,38 +277,111 @@ chfs_client::readdir(inum dir, std::list<dirent> &list)
      * and push the dirents to the list.
      */
 
+    // my defined format: name'\0'inum/name'\0'inum/...
+    if (!isdir(dir))
+    {
+        printf("chfs_client::readdir: dir:%lld do not exist", dir);
+        return IOERR;
+    }
+
+    std::string buf;
+    ec->get(dir, buf);
+    struct dirent temp;
+    unsigned long name_start = 0, name_end = buf.find('\0');
+    while (name_end != std::string::npos)
+    {
+        std::string name = buf.substr(name_start, name_end - name_start);
+        int inum_start = name_end + 1;
+        int inum_end = buf.find('/', inum_start);
+        std::string inum = buf.substr(inum_start, inum_end);
+        name_start = inum_end + 1;
+        name_end = buf.find('\0', name_start);
+        temp.inum = n2i(inum);
+        temp.name = name;
+        list.push_back(temp);
+    }
     return r;
 }
 
-int
-chfs_client::read(inum ino, size_t size, off_t off, std::string &data)
+int chfs_client::read(inum ino, size_t size, off_t off, std::string &data)
 {
     int r = OK;
-
+    printf("chfs_client::read file:%lld off:%ld size:%ld\n", ino,off,size);
     /*
      * your code goes here.
      * note: read using ec->get().
      */
+    std::string buf;
+    r = ec->get(ino, buf);
+    if (r != OK)
+    {
+        printf("chfs_client::read: invalid inum %lld\n", ino);
+        return r;
+    }
+    if (off >= buf.size())
+    {
+        data = "";
+        return r;
+    }
+    // data = buf.substr(off, size);
+    // return r;
+    if (off + size > buf.size()) {
+        data = buf.substr(off);
+        return r;
+    }
 
+    // normal
+    data = buf.substr(off, size);
     return r;
 }
 
+<<<<<<< HEAD
+// Your code here for Lab2A: add logging to ensure atomicity
 int
 chfs_client::write(inum ino, size_t size, off_t off, const char *data,
         size_t &bytes_written)
+=======
+int chfs_client::write(inum ino, size_t size, off_t off, const char *data,
+                       size_t &bytes_written)
+>>>>>>> lab1
 {
     int r = OK;
-
+    printf("chfs_client::write file:%lld off:%ld size:%ld", ino,off,size);
     /*
      * your code goes here.
      * note: write using ec->put().
      * when off > length of original file, fill the holes with '\0'.
      */
-
+    std::string buf;
+    r = ec->get(ino, buf);
+    if (r != OK)
+    {
+        printf("chfs_client::write: invalid inum %lld\n", ino);
+        return r;
+    }
+    // fill the holes with '\0'
+    if (off + size > buf.size())
+    {
+        buf.resize(off + size);
+    }
+    printf("\tbuf resize:%ld\n",buf.size());
+    // buf = buf.replace(off, size, data);
+    //用replace函数buf size会出现bug
+    for(int i=off;i<off+size;i++){
+        buf[i] = data[i-off];
+    }
+    printf("\tbuf size after replace:%ld\n",buf.size());
+    bytes_written = size;
+    r = ec->put(ino,buf);
     return r;
 }
 
+<<<<<<< HEAD
+// Your code here for Lab2A: add logging to ensure atomicity
 int chfs_client::unlink(inum parent,const char *name)
+=======
+int chfs_client::unlink(inum parent, const char *name)
+>>>>>>> lab1
 {
     int r = OK;
 
@@ -227,7 +390,60 @@ int chfs_client::unlink(inum parent,const char *name)
      * note: you should remove the file using ec->remove,
      * and update the parent directory content.
      */
+    bool found = false;
+    inum ino;
+    std::list<dirent> list;
+    std::string buf;
+    r = lookup(parent,name,found,ino);
 
+    if(r!=OK)return r;
+    if(!found)return NOENT;
+    if(isdir(ino))return IOERR;
+
+    ec->remove(ino);
+    ec->get(parent,buf);
+    int start = buf.find(name);
+    int end = buf.find('/',start);
+    buf.erase(start,end-start+1);
+    ec->put(parent,buf);
     return r;
 }
 
+int chfs_client::symlink(inum parent, const char *name, inum &ino_out,const char *content)
+{
+    int r = OK;
+    bool found = false;
+    r = lookup(parent, name, found, ino_out);
+    if (r == IOERR)
+    {
+        printf("chfs_client::symlink: no such parent dir,make now\n");
+        return r;
+    }
+    if (found)
+        return EXIST;
+    
+    printf("chfs_client::symlink create symlink:%s content:%s ",name,content);
+    r = ec->create(extent_protocol::T_SYMLINK,ino_out);
+    printf("inum:%lld\n",ino_out);
+    r = ec->put(ino_out,std::string(content));
+
+    std::string buf;
+    r = ec->get(parent,buf);
+    buf.append(std::string(name) + '\0' + filename(ino_out) + '/');
+    r = ec->put(parent, buf);
+    return r;
+    
+}
+
+int chfs_client::readlink(inum ino,std::string &data)
+{
+    int r = OK;
+    r = ec->get(ino, data);
+    if (r != OK)
+    {
+        printf("chfs_client::readlink: invalid inum %lld\n", ino);
+        return r;
+    }
+    printf("chfs_client::readlink:%lld, content:%s\n",ino,data);
+    return r;
+}

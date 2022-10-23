@@ -1,0 +1,83 @@
+unique: 4908, opcode: SYMLINK (6), nodeid: 1, insize: 65, pid: 14993
+fuse create symlink:testhostslink content:hosts_copy
+extent_server: getattr 1
+	debug:get attr 1
+isdir: 1 is a dir
+extent_server: get 1
+	read file1	debug: size 15702	block_num 31
+chfs_client::symlink create symlink:testhostslink content:hosts_copy extent_server: create inode
+	im: inode not exist
+	im: put_inode 251
+inum:251
+	extent client put buf size:10
+	extent server put buf size:10
+	debug:write file:251 size:10	old_block_size:0	new_block_size:1
+	begin:1208	end:1208
+	im: put_inode 251
+extent_server: get 1
+	read file1	debug: size 15702	block_num 31
+	extent client put buf size:15720
+	extent server put buf size:15720
+	debug:write file:1 size:15720	old_block_size:31	new_block_size:31
+	im: put_inode 1
+extent_server: getattr 251
+	debug:get attr 251
+isfile: 251 is a dir
+getattr 00000000000000fb 0
+extent_server: getattr 251
+	debug:get attr 251
+isfile: 251 is a dir
+extent_server: getattr 251
+	debug:get attr 251
+getfile 00000000000000fb
+extent_server: getattr 251
+	debug:get attr 251
+getfile 00000000000000fb -> sz 10
+   getattr -> 10
+   unique: 4908, success, outsize: 144
+   unique: 4910, opcode: LOOKUP (1), nodeid: 1, insize: 54, pid: 14994
+extent_server: getattr 1
+	debug:get attr 1
+isdir: 1 is a dir
+extent_server: get 1
+	read file1	debug: size 15720	block_num 31
+extent_server: getattr 251
+	debug:get attr 251
+isfile: 251 is a dir
+getattr 00000000000000fb 0
+extent_server: getattr 251
+	debug:get attr 251
+isfile: 251 is a dir
+extent_server: getattr 251
+	debug:get attr 251
+getfile 00000000000000fb
+extent_server: getattr 251
+	debug:get attr 251
+getfile 00000000000000fb -> sz 10
+   getattr -> 10
+   unique: 4910, success, outsize: 144
+unique: 4912, opcode: READLINK (5), nodeid: 251, insize: 40, pid: 14994
+fuse readlink:251 extent_server: get 251
+	read file251	debug: size 10	block_num 1
+chfs_client::readlink:251, content:P�^M�
+content:��^M�
+   unique: 4912, success, outsize: 26
+unique: 4914, opcode: LOOKUP (1), nodeid: 1, insize: 51, pid: 14994
+extent_server: getattr 1
+	debug:get attr 1
+isdir: 1 is a dir
+extent_server: get 1
+	read file1	debug: size 15720	block_num 31
+extent_server: getattr 250
+	debug:get attr 250
+isfile: 250 is a file
+getattr 00000000000000fa 1
+extent_server: getattr 250
+	debug:get attr 250
+isfile: 250 is a file
+getfile 00000000000000fa
+extent_server: getattr 250
+	debug:get attr 250
+getfile 00000000000000fa -> sz 174
+   getattr -> 174
+   unique: 4914, success, outsize: 144
