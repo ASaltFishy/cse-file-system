@@ -136,7 +136,7 @@ inode_manager::alloc_inode(uint32_t type)
       break;
     free(temp);
   }
-
+  
   temp = (struct inode *)malloc(sizeof(struct inode));
   bzero(temp,sizeof(struct inode));
   int t = time(0);

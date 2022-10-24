@@ -20,20 +20,30 @@
  * 3. each chfs_commands contains transaction ID, command type, and other information.
  * 4. you can treat a chfs_command as a log entry.
  */
+
 class chfs_command {
 public:
     typedef unsigned long long txid_t;
     enum cmd_type {
         CMD_BEGIN = 0,
-        CMD_COMMIT
-
+        CMD_COMMIT,
+        CMD_CREATE,
+        CMD_PUT,
+        CMD_GET,
+        CMD_GETATTR,
+        CMD_REMOVE
     };
 
+    //have to design a value log
     cmd_type type = CMD_BEGIN;
     txid_t id = 0;
+    
 
     // constructor
-    chfs_command() {}
+    chfs_command(cmd_type _type=CMD_BEGIN,txid_t _id = 0) {
+        type = _type;
+        id = _id;
+    }
 
     uint64_t size() const {
         uint64_t s = sizeof(cmd_type) + sizeof(txid_t);
