@@ -42,7 +42,7 @@ extent_client::put(extent_protocol::extentid_t eid, std::string buf)
 {
   extent_protocol::status ret = extent_protocol::OK;
   int r;
-  printf("\textent client put buf size:%ld\n",buf.size());
+  printf("\textent client put buf size:%ld \n",buf.size());
   ret = es->put(eid, buf, r);
   return ret;
 }

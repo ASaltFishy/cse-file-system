@@ -535,7 +535,7 @@ void fuseserver_readlink(fuse_req_t req, fuse_ino_t ino)
     std::string content;
     printf("fuse readlink:%ld ",ino);
     ret = chfs->readlink(ino, content);
-    printf("content:%s\n",content);
+    printf("content:%s\n",content.data());
     if (ret == chfs_client::OK)
     {
         fuse_reply_readlink(req, content.c_str());

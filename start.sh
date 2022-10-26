@@ -15,7 +15,8 @@ rm -rf $ChFSDIR1
 mkdir $ChFSDIR1 || exit 1
 sleep 1
 echo "starting ./chfs_client $ChFSDIR1  > chfs_client1.log 2>&1 &"
-./chfs_client $ChFSDIR1   > chfs_client1.log 2>&1 &
+# ./chfs_client $ChFSDIR1   > chfs_client1.log 2>&1 &
+./chfs_client $ChFSDIR1  >> chfs_client1.log 2>&1 &
 
 sleep 2
 

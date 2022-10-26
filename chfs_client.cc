@@ -192,7 +192,7 @@ chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
     r = ec->create(extent_protocol::T_FILE, ino_out);
     std::string buf;
     r = ec->get(parent, buf);
-    buf.append(std::string(name) + '\0' + filename(ino_out) + '/');
+    buf.append(std::string(name) + '/' + filename(ino_out) + '/');
     r = ec->put(parent, buf);
     return r;
 }
@@ -221,7 +221,7 @@ chfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
     r = ec->create(extent_protocol::T_DIR, ino_out);
     std::string buf;
     r = ec->get(parent, buf);
-    buf.append(std::string(name) + '\0' + filename(ino_out) + '/');
+    buf.append(std::string(name) + '/' + filename(ino_out) + '/');
     r = ec->put(parent, buf);
     return r;
 }
@@ -265,7 +265,7 @@ int chfs_client::readdir(inum dir, std::list<dirent> &list)
      * and push the dirents to the list.
      */
 
-    // my defined format: name'\0'inum/name'\0'inum/...
+    // my defined format: name/inum/name/inum/...
     if (!isdir(dir))
     {
         printf("chfs_client::readdir: dir:%lld do not exist", dir);
@@ -275,7 +275,7 @@ int chfs_client::readdir(inum dir, std::list<dirent> &list)
     std::string buf;
     ec->get(dir, buf);
     struct dirent temp;
-    unsigned long name_start = 0, name_end = buf.find('\0');
+    unsigned long name_start = 0, name_end = buf.find('/');
     while (name_end != std::string::npos)
     {
         std::string name = buf.substr(name_start, name_end - name_start);
@@ -283,7 +283,7 @@ int chfs_client::readdir(inum dir, std::list<dirent> &list)
         int inum_end = buf.find('/', inum_start);
         std::string inum = buf.substr(inum_start, inum_end);
         name_start = inum_end + 1;
-        name_end = buf.find('\0', name_start);
+        name_end = buf.find('/', name_start);
         temp.inum = n2i(inum);
         temp.name = name;
         list.push_back(temp);
@@ -383,6 +383,8 @@ int chfs_client::unlink(inum parent,const char *name)
     ec->get(parent,buf);
     int start = buf.find(name);
     int end = buf.find('/',start);
+    std::string temp = buf.substr(start, end);
+    printf("unlink: content:%s\n",temp.data());
     buf.erase(start,end-start+1);
     ec->put(parent,buf);
     return r;
@@ -408,7 +410,7 @@ int chfs_client::symlink(inum parent, const char *name, inum &ino_out,const char
 
     std::string buf;
     r = ec->get(parent,buf);
-    buf.append(std::string(name) + '\0' + filename(ino_out) + '/');
+    buf.append(std::string(name) + '/' + filename(ino_out) + '/');
     r = ec->put(parent, buf);
     return r;
     
@@ -423,6 +425,6 @@ int chfs_client::readlink(inum ino,std::string &data)
         printf("chfs_client::readlink: invalid inum %lld\n", ino);
         return r;
     }
-    printf("chfs_client::readlink:%lld, content:%s\n",ino,data);
+    printf("chfs_client::readlink:%lld, content:%s\n",ino,data.data());
     return r;
 }
