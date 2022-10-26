@@ -56,4 +56,12 @@ extent_client::remove(extent_protocol::extentid_t eid)
   return ret;
 }
 
+void extent_client::beginTX(){
+  es->beginTX();
+}
+
+void extent_client::commitTX(){
+  es->commitTX();
+}
+
 

@@ -27,7 +27,7 @@ extent_server::extent_server()
     switch (it->type)
     {
     case chfs_command::CMD_CREATE:
-      im->alloc_inode(it->type);
+      im->alloc_inode(it->fileType);
       break;
     case chfs_command::CMD_PUT:
       im->write_file(it->inum,it->newbuf.data(),it->newsize);
@@ -41,14 +41,27 @@ extent_server::extent_server()
   }
 }
 
+void extent_server::beginTX(){
+  chfs_command entry(chfs_command::CMD_BEGIN);
+  _persister->append_log(entry);
+}
+
+void extent_server::commitTX(){
+  chfs_command entry(chfs_command::CMD_COMMIT);
+  _persister->append_log(entry);
+}
+
 int extent_server::create(uint32_t type, extent_protocol::extentid_t &id)
 {
   // alloc a new inode and return inum
   printf("extent_server: create inode\n");
   id = im->alloc_inode(type);
 
+  // for log
+  extent_protocol::attr attr;
+  im->get_attr(id,attr);
   printf("save cmd: CREATE-%lld\n",id);
-  chfs_command entry(chfs_command::CMD_CREATE,id);
+  chfs_command entry(chfs_command::CMD_CREATE,id,attr.type);
   _persister->append_log(entry);
 
   return extent_protocol::OK;
@@ -62,10 +75,11 @@ int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
   int size = buf.size();
 
   //get the old buf for persistence
+  char *tempbuf = NULL;
   int oldsize;
   std::string oldbuf;
-  get(id,oldbuf);
-  oldsize = oldbuf.size();
+  im->read_file(id, &tempbuf, &oldsize);
+  oldbuf.assign(tempbuf,oldsize);
 
   printf("\textent server put buf size:%ld buf:%s",buf.size(),buf.data());
   im->write_file(id, cbuf, size);
@@ -125,8 +139,10 @@ int extent_server::remove(extent_protocol::extentid_t id, int &)
 
   im->remove_file(id);
 
+  extent_protocol::attr attr;
+  im->get_attr(id,attr);
   printf("save cmd: RREMOVE-%lld, oldsize-%d\n",id,oldsize);
-   chfs_command entry(chfs_command::CMD_REMOVE,id,oldsize,oldbuf);
+   chfs_command entry(chfs_command::CMD_REMOVE,id,attr.type,oldsize,oldbuf);
   _persister->append_log(entry);
 
   return extent_protocol::OK;

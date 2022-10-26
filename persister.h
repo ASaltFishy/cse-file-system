@@ -44,27 +44,31 @@ public:
     size_t oldsize, newsize;
     inode_num_t inum;
     std::string oldbuf, newbuf;
+    uint32_t fileType;
 
     // constructor for BEGIN and COMMIT
+    // only called when writing log
     chfs_command(cmd_type _type)
     {
+        // when reach a commit point, latest id ++
         type = _type;
-        id = ++latest_id;
+        id = _type == CMD_COMMIT ? ++latest_id : latest_id;
         entrysize = getSize();
     }
     // constructor for CREATE
-    chfs_command(cmd_type _type, inode_num_t alloc_id)
+    chfs_command(cmd_type _type, inode_num_t alloc_id, uint32_t _fileType, txid_t _id = 0, bool isRead = false)
     {
         type = _type;
-        id = ++latest_id;
+        id = isRead ? _id : latest_id;
         inum = alloc_id;
+        fileType = _fileType;
         entrysize = getSize();
     }
     // constructor for PUT
-    chfs_command(cmd_type _type, inode_num_t alloc_id, size_t _oldsize, std::string _oldbuf, size_t _newsize, std::string _newbuf)
+    chfs_command(cmd_type _type, inode_num_t alloc_id, size_t _oldsize, std::string _oldbuf, size_t _newsize, std::string _newbuf, txid_t _id = 0, bool isRead = false)
     {
         type = _type;
-        id = ++latest_id;
+        id = isRead ? _id : latest_id;
         inum = alloc_id;
         oldsize = _oldsize;
         newsize = _newsize;
@@ -73,11 +77,12 @@ public:
         entrysize = getSize();
     }
     // constructor for REMOVE
-    chfs_command(cmd_type _type, inode_num_t alloc_id, size_t _oldsize, std::string _oldbuf)
+    chfs_command(cmd_type _type, inode_num_t alloc_id, uint32_t _fileType, size_t _oldsize, std::string _oldbuf, txid_t _id = 0, bool isRead = false)
     {
         type = _type;
-        id = ++latest_id;
+        id = isRead ? _id : latest_id;
         inum = alloc_id;
+        fileType = _fileType;
         oldsize = _oldsize;
         oldbuf = _oldbuf;
         entrysize = getSize();
@@ -93,10 +98,10 @@ public:
         case CMD_COMMIT:
             break;
         case CMD_CREATE:
-            s += sizeof(inode_num_t);
+            s += sizeof(inode_num_t) + sizeof(uint32_t);
             break;
         case CMD_REMOVE:
-            s += sizeof(inode_num_t) + oldbuf.size() + sizeof(size_t);
+            s += sizeof(inode_num_t) + sizeof(uint32_t) + oldbuf.size() + sizeof(size_t);
             break;
         case CMD_PUT:
             s += sizeof(inode_num_t) + oldbuf.size() + 2 * sizeof(size_t) + newbuf.size();
@@ -123,6 +128,7 @@ public:
             output->write((char *)&id, sizeof(id));
             output->write((char *)&type, sizeof(type));
             output->write((char *)&inum, sizeof(inum));
+            output->write((char *)&fileType, sizeof(fileType));
             output->write((char *)&entrysize, sizeof(entrysize));
             break;
         case CMD_REMOVE:
@@ -130,6 +136,7 @@ public:
             output->write((char *)&id, sizeof(txid_t));
             output->write((char *)&type, sizeof(cmd_type));
             output->write((char *)&inum, sizeof(inode_num_t));
+            output->write((char *)&fileType, sizeof(fileType));
             output->write((char *)&oldsize, sizeof(size_t));
             output->write(oldbuf.data(), oldsize);
             output->write((char *)&entrysize, sizeof(size_t));
@@ -187,7 +194,6 @@ private:
     // restored log data
     std::vector<command> log_entries;
     void parseEntry(std::ifstream *input);
-
 };
 
 template <typename command>
@@ -230,11 +236,13 @@ std::vector<command> &persister<command>::restore_logdata()
     // no transaction now and just redo from start to end
     std::ifstream *inFile = new std::ifstream();
     inFile->open(file_path_logfile, std::ofstream::binary);
-    if(inFile->is_open()){
+    if (inFile->is_open())
+    {
         printf("persist: open log file successfuly!\n");
         parseEntry(inFile);
     }
-    else{
+    else
+    {
         printf("persist: log file not exist, skip parsing!\n");
     }
     inFile->close();
@@ -244,97 +252,115 @@ std::vector<command> &persister<command>::restore_logdata()
 
 template <typename command>
 void persister<command>::parseEntry(std::ifstream *input)
+{
+    printf("parse: start function now!\n");
+    chfs_command::txid_t id;
+    chfs_command::size_t entrySize, oldsize, newsize;
+    chfs_command::cmd_type type;
+    chfs_command::inode_num_t inum;
+    std::string newbuf, oldbuf;
+    uint32_t fileType;
+    while (true)
     {
-        printf("parse: start function now!\n");
-        chfs_command::txid_t id;
-        chfs_command::size_t entrySize, oldsize, newsize;
-        chfs_command::cmd_type type;
-        chfs_command::inode_num_t inum;
-        std::string newbuf,oldbuf;
-        while (true)
+        input->read((char *)&id, sizeof(id));
+        printf("parse: read txid: %lld\t", id);
+        input->read((char *)&type, sizeof(type));
+        printf("type: %d\t", type);
+        if (input->eof())
+            break;
+
+        switch (type)
         {
-            printf("parse: start while now!\n");
-            printf("parse: EOF: %d",input->eof());
-            input->read((char *)&id, sizeof(id));
-            printf("parse: read id: %lld\t",id);
-            input->read((char *)&type, sizeof(type));
-            printf("parse: read type: %d\n",type);
-            if(input->eof())break;
-            switch (type)
+        case chfs_command::CMD_BEGIN:
+        case chfs_command::CMD_COMMIT:
+        {
+            input->read((char *)&entrySize, sizeof(chfs_command::size_t));
+            chfs_command::latest_id = id;
+            break;
+        }
+        case chfs_command::CMD_CREATE:
+        {
+            input->read((char *)&inum, sizeof(chfs_command::inode_num_t));
+            printf("inum: %d\n", inum);
+            input->read((char *)&fileType, sizeof(fileType));
+            printf("filetype: %d\n", fileType);
+            input->read((char *)&entrySize, sizeof(chfs_command::size_t));
+            chfs_command acmd(type, inum, fileType, id, true);
+            log_entries.push_back(acmd);
+            break;
+        }
+        case chfs_command::CMD_PUT:
+        {
+            input->read((char *)&inum, sizeof(chfs_command::inode_num_t));
+            printf("inum: %d\t", inum);
+
+            input->read((char *)&oldsize, sizeof(chfs_command::size_t));
+            printf("oldsize: %ld\t", oldsize);
+
+            if (oldsize != 0)
             {
-            case chfs_command::CMD_BEGIN:
-            case chfs_command::CMD_COMMIT:
+                char buf[oldsize];
+                input->read(buf, oldsize);
+                oldbuf.clear();
+                oldbuf.assign(buf, oldsize);
+                printf("exactly:%ld buf:%s\t", input->gcount(), oldbuf.data());
+            }
+
+            input->read((char *)&newsize, sizeof(chfs_command::size_t));
+            printf("newsize: %ld\t", newsize);
+
+            char buf[newsize];
+            input->read(buf, newsize);
+            newbuf.clear();
+            newbuf.assign(buf, newsize);
+            printf("exactly:%ld\t buf:%s", input->gcount(), newbuf.data());
+
+            input->read((char *)&entrySize, sizeof(chfs_command::size_t));
+            printf("entrysize: %ld\n", entrySize);
+            chfs_command acmd(type, inum, oldsize, oldbuf, newsize, newbuf, id, true);
+            log_entries.push_back(acmd);
+            break;
+        }
+        case chfs_command::CMD_REMOVE:
+        {
+            input->read((char *)&inum, sizeof(chfs_command::inode_num_t));
+            printf("inum: %d\t", inum);
+
+            input->read((char *)&fileType, sizeof(fileType));
+            printf("filetype: %d\n", fileType);
+
+            input->read((char *)&oldsize, sizeof(chfs_command::size_t));
+            printf("oldsize: %ld\t", oldsize);
+
+            if (oldsize != 0)
             {
-                input->read((char *)&entrySize, sizeof(chfs_command::size_t));
-                chfs_command acmd(type);
-                log_entries.push_back(acmd);
-                break;
+                char buf[oldsize];
+                input->read(buf, oldsize);
+                oldbuf.clear();
+                oldbuf.assign(buf, oldsize);
+                printf("exactly:%ld buf:%s\t", input->gcount(), oldbuf.data());
             }
-            case chfs_command::CMD_CREATE:
-            {
-                input->read((char *)&inum, sizeof(chfs_command::inode_num_t));
-                input->read((char *)&entrySize, sizeof(chfs_command::size_t));
-                chfs_command acmd(type, inum);
-                log_entries.push_back(acmd);
-                break;
-            }
-            case chfs_command::CMD_PUT:
-            {
-                input->read((char *)&inum, sizeof(chfs_command::inode_num_t));
-                printf("parse: read inum: %d\t",inum);
 
-                input->read((char *)&oldsize, sizeof(chfs_command::size_t));
-                printf("parse: read oldsize: %ld\t",oldsize);
-
-                if(oldsize!=0){
-                    char buf[oldsize];
-                    input->read(buf, oldsize);
-                    oldbuf.clear();
-                    oldbuf = std::string(buf);
-                printf("parse: read exactly read:%d \t",input->gcount());
-                }
-
-                input->read((char *)&newsize, sizeof(chfs_command::size_t));
-                printf("parse: read newsize: %ld\t",newsize);
-
-                char buf[newsize];
-                input->read(buf, newsize);
-                newbuf.clear();
-                newbuf = std::string(buf);
-                printf("parse: read exactly read:%d\t",input->gcount());
-
-                input->read((char *)&entrySize, sizeof(chfs_command::size_t));
-                printf("parse: read entrysize: %ld\n",entrySize);
-                chfs_command acmd(type, inum, oldsize, oldbuf, newsize, newbuf);
-                log_entries.push_back(acmd);
-                break;
-            }
-            case chfs_command::CMD_REMOVE:
-            {
-                input->read((char *)&inum, sizeof(chfs_command::inode_num_t));
-                printf("parse: read inum: %d\t",inum);
-
-                input->read((char *)&oldsize, sizeof(chfs_command::size_t));
-                printf("parse: read oldsize: %ld\t",oldsize);
-
-                if(oldsize!=0){
-                    char buf[oldsize];
-                    input->read(buf, oldsize);
-                    oldbuf.clear();
-                    oldbuf = std::string(buf);
-                }
-
-                input->read((char *)&entrySize, sizeof(chfs_command::size_t));
-                printf("parse: read entrysize: %ld\n",entrySize);
-                chfs_command acmd(type, inum, oldsize, oldbuf);
-                log_entries.push_back(acmd);
-                break;
-            }
-            default:
-                break;
-            }
+            input->read((char *)&entrySize, sizeof(chfs_command::size_t));
+            printf("entrysize: %ld\n", entrySize);
+            chfs_command acmd(type, inum, fileType, oldsize, oldbuf, id, true);
+            log_entries.push_back(acmd);
+            break;
+        }
+        default:
+            break;
         }
     }
+    // undo transaction
+    int back = log_entries.size() - 1;
+    for (int i = back; i >= 0; i--)
+    {
+        chfs_command temp = log_entries[i];
+        if (temp.id != chfs_command::latest_id)
+            break;
+        log_entries.pop_back();
+    }
+}
 
 template <typename command>
 void persister<command>::restore_checkpoint(){

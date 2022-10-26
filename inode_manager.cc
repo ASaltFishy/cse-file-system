@@ -397,11 +397,15 @@ void inode_manager::write_file(uint32_t inum, const char *buf, int size)
   }
   else
   {
+    printf("already allocated now write file begin!\n");
     for(int i=0;i<NDIRECT;i++){
+      printf("%d\t",i);
       bm->write_block(ino->blocks[i],buf+i*BLOCK_SIZE);
     }
+    printf("have write direct!\n");
     char idirect_id[BLOCK_SIZE];
     bm->read_block(ino->blocks[NDIRECT], idirect_id);
+    printf("begin write indirect!\n");
     for(int i=NDIRECT;i<new_block_num;i++){
       blockid_t id = *((blockid_t *)idirect_id + i-NDIRECT);
       bm->write_block(id,buf+i*BLOCK_SIZE);
