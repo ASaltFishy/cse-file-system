@@ -22,7 +22,25 @@ void disk::write_block(blockid_t id, const char *buf)
   memcpy(blocks[id], buf, BLOCK_SIZE);
 }
 
+//write blocks to disk
+void disk::snapshot(std::ofstream *output){
+  output->write((char *)blocks,DISK_SIZE);
+}
+
+//read blocks from disk
+void disk::load_snapshot(std::ifstream *input){
+  input->read((char *)blocks,DISK_SIZE);
+}
+
 // block layer -----------------------------------------
+
+void block_manager::snapshot(std::ofstream *output){
+  d->snapshot(output);
+}
+
+void block_manager::load_snapshot(std::ifstream *input){
+  d->load_snapshot(input);
+}
 
 // Allocate a free disk block.
 blockid_t
@@ -105,6 +123,14 @@ void block_manager::write_block(uint32_t id, const char *buf)
 }
 
 // inode layer -----------------------------------------
+
+void inode_manager::snapshot(std::ofstream *output){
+  bm->snapshot(output);
+}
+
+void inode_manager::load_snapshot(std::ifstream *input){
+  bm->load_snapshot(input);
+}
 
 inode_manager::inode_manager()
 {

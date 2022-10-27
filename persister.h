@@ -190,6 +190,7 @@ private:
     std::string file_dir;
     std::string file_path_checkpoint;
     std::string file_path_logfile;
+    int logSize = 0;
 
     // restored log data
     std::vector<command> log_entries;

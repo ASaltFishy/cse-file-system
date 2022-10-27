@@ -4,6 +4,7 @@
 #define inode_h
 
 #include <stdint.h>
+#include <fstream>
 #include "extent_protocol.h"
 
 #define DISK_SIZE  1024*1024*16
@@ -22,6 +23,10 @@ class disk {
   disk();
   void read_block(uint32_t id, char *buf);
   void write_block(uint32_t id, const char *buf);
+  //write blocks to disk
+  void snapshot(std::ofstream *output);
+  //read blocks from disk
+  void load_snapshot(std::ifstream *input);
 };
 
 // block layer -----------------------------------------
@@ -44,6 +49,8 @@ class block_manager {
   void free_block(uint32_t id);
   void read_block(uint32_t id, char *buf);
   void write_block(uint32_t id, const char *buf);
+  void snapshot(std::ofstream *output);
+  void load_snapshot(std::ifstream *input);
 };
 
 // inode layer -----------------------------------------
@@ -90,6 +97,8 @@ class inode_manager {
   void write_file(uint32_t inum, const char *buf, int size);
   void remove_file(uint32_t inum);
   void get_attr(uint32_t inum, extent_protocol::attr &a);
+  void snapshot(std::ofstream *output);
+  void load_snapshot(std::ifstream *input);
 };
 
 #endif
