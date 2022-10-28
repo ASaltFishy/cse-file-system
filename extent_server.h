@@ -34,6 +34,7 @@ class extent_server {
   // Your code here for lab2A: add logging APIs
   void beginTX();
   void commitTX();
+  void checkpoint();
 };
 
 #endif 
