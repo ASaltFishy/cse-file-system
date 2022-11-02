@@ -46,7 +46,12 @@ extent_protocol::status
 extent_client::put(extent_protocol::extentid_t eid, std::string buf)
 {
   extent_protocol::status ret = extent_protocol::OK;
+  int r;
+  printf("\textent client put buf size:%ld \n",buf.size());
+  ret = es->put(eid, buf, r);
   // Your lab2B part1 code goes here
+
+  
   return ret;
 }
 
@@ -56,6 +61,14 @@ extent_client::remove(extent_protocol::extentid_t eid)
   extent_protocol::status ret = extent_protocol::OK;
   // Your lab2B part1 code goes here
   return ret;
+}
+
+void extent_client::beginTX(){
+  es->beginTX();
+}
+
+void extent_client::commitTX(){
+  es->commitTX();
 }
 
 
