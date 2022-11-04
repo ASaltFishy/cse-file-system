@@ -17,11 +17,6 @@
  * to achive all-or-nothing for these transactions.
  */
 
-chfs_client::chfs_client()
-{
-    ec = new extent_client();
-}
-
 chfs_client::chfs_client(std::string extent_dst, std::string lock_dst)
 {
     ec = new extent_client(extent_dst);
