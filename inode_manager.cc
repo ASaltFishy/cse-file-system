@@ -341,9 +341,6 @@ void inode_manager::write_file(uint32_t inum, const char *buf, int size)
    */
   printf("\tdebug:write file:%d size:%d",inum,size);
   struct inode *ino = get_inode(inum);
-  // printf("\tdebug:ino:%p",ino);
-  // printf("\tsize:",ino->size);
-  // printf("\ttype:",ino->type);
   int old_block_num = (ino->size + BLOCK_SIZE - 1) / BLOCK_SIZE;
   int new_block_num = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
   printf("\told_block_size:%d\tnew_block_size:%d\n",old_block_num,new_block_num);

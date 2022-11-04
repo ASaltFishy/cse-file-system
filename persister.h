@@ -372,7 +372,7 @@ void persister<command>::parseEntry(std::ifstream *input)
                 input->read(buf, oldsize);
                 oldbuf.clear();
                 oldbuf.assign(buf, oldsize);
-                printf("exactly:%ld buf:%s\t", input->gcount(), oldbuf.data());
+                printf("exactly:%ld\t", input->gcount());
             }
 
             input->read((char *)&newsize, sizeof(chfs_command::size_t));
@@ -382,7 +382,7 @@ void persister<command>::parseEntry(std::ifstream *input)
             input->read(buf, newsize);
             newbuf.clear();
             newbuf.assign(buf, newsize);
-            printf("exactly:%ld\t buf:%s\n", input->gcount(), newbuf.data());
+            printf("exactly:%ld\t\n", input->gcount());
 
             // input->read((char *)&entrySize, sizeof(chfs_command::size_t));
             // printf("entrysize: %ld\n", entrySize);
@@ -407,7 +407,7 @@ void persister<command>::parseEntry(std::ifstream *input)
                 input->read(buf, oldsize);
                 oldbuf.clear();
                 oldbuf.assign(buf, oldsize);
-                printf("exactly:%ld buf:%s\n", input->gcount(), oldbuf.data());
+                printf("exactly:%ld\n", input->gcount());
             }
 
             // input->read((char *)&entrySize, sizeof(chfs_command::size_t));

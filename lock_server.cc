@@ -25,6 +25,18 @@ lock_server::acquire(int clt, lock_protocol::lockid_t lid, int &r)
 {
   lock_protocol::status ret = lock_protocol::OK;
 	// Your lab2B part2 code goes here
+  pthread_mutex_lock(&mutex);
+  if(lockMap.find(lid)==lockMap.end()){
+    lockMap[lid] = true;
+  }
+  else{
+    while(lockMap[lid]){
+      pthread_cond_wait(&releasedLock,&mutex);
+    }
+    lockMap[lid] = true;
+  }
+  pthread_mutex_unlock(&mutex);
+  r = nacquire;
   return ret;
 }
 
@@ -33,5 +45,15 @@ lock_server::release(int clt, lock_protocol::lockid_t lid, int &r)
 {
   lock_protocol::status ret = lock_protocol::OK;
 	// Your lab2B part2 code goes here
-  return ret;
+  pthread_mutex_lock(&mutex);
+  if(lockMap.find(lid)==lockMap.end()){
+    pthread_mutex_unlock(&mutex);
+    return lock_protocol::NOENT;
+  }
+  else{
+    lockMap[lid] = false;
+    pthread_mutex_unlock(&mutex);
+    pthread_cond_signal(&releasedLock);
+    return ret;
+  }
 }

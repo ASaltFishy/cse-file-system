@@ -185,13 +185,13 @@ chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
     if (found)
         return EXIST;
 
-    ec->beginTX();
+    ec->beginTX(ino_out);
     r = ec->create(extent_protocol::T_FILE, ino_out);
     std::string buf;
     r = ec->get(parent, buf);
     buf.append(std::string(name) + '/' + filename(ino_out) + '/');
     r = ec->put(parent, buf);
-    ec->commitTX();
+    ec->commitTX(ino_out);
     return r;
 }
 
@@ -216,13 +216,13 @@ chfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
     if (found)
         return EXIST;
 
-    ec->beginTX();
+    ec->beginTX(ino_out);
     r = ec->create(extent_protocol::T_DIR, ino_out);
     std::string buf;
     r = ec->get(parent, buf);
     buf.append(std::string(name) + '/' + filename(ino_out) + '/');
     r = ec->put(parent, buf);
-    ec->commitTX();
+    ec->commitTX(ino_out);
     return r;
 }
 
@@ -355,9 +355,9 @@ chfs_client::write(inum ino, size_t size, off_t off, const char *data,
     }
     printf("\tbuf size after replace:%ld\n",buf.size());
     bytes_written = size;
-    ec->beginTX();
+    ec->beginTX(ino);
     r = ec->put(ino,buf);
-    ec->commitTX();
+    ec->commitTX(ino);
     return r;
 }
 
@@ -381,7 +381,7 @@ int chfs_client::unlink(inum parent,const char *name)
     if(!found)return NOENT;
     if(isdir(ino))return IOERR;
 
-    ec->beginTX();
+    ec->beginTX(ino);
     ec->remove(ino);
     ec->get(parent,buf);
     int start = buf.find(name);
@@ -391,7 +391,7 @@ int chfs_client::unlink(inum parent,const char *name)
     printf("unlink: content:%s\n",temp.data());
     buf.erase(start,end-start+1);
     ec->put(parent,buf);
-    ec->commitTX();
+    ec->commitTX(ino);
     return r;
 }
 
@@ -408,7 +408,7 @@ int chfs_client::symlink(inum parent, const char *name, inum &ino_out,const char
     if (found)
         return EXIST;
     
-    ec->beginTX();
+    ec->beginTX(ino_out);
     printf("chfs_client::symlink create symlink:%s content:%s ",name,content);
     r = ec->create(extent_protocol::T_SYMLINK,ino_out);
     printf("inum:%lld\n",ino_out);
@@ -418,7 +418,7 @@ int chfs_client::symlink(inum parent, const char *name, inum &ino_out,const char
     r = ec->get(parent,buf);
     buf.append(std::string(name) + '/' + filename(ino_out) + '/');
     r = ec->put(parent, buf);
-    ec->commitTX();
+    ec->commitTX(ino_out);
     return r;
     
 }

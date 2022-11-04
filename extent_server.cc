@@ -43,7 +43,7 @@ extent_server::extent_server()
   }
 }
 
-void extent_server::beginTX()
+int extent_server::beginTX(extent_protocol::extentid_t id, int &)
 {
   chfs_command entry(chfs_command::CMD_BEGIN);
   if (!_persister->append_log(entry))
@@ -52,9 +52,10 @@ void extent_server::beginTX()
     checkpoint();
   }
   _persister->append_log(entry);
+  return extent_protocol::OK;
 }
 
-void extent_server::commitTX()
+int extent_server::commitTX(extent_protocol::extentid_t id, int &)
 {
   chfs_command entry(chfs_command::CMD_COMMIT);
   if (!_persister->append_log(entry))
@@ -63,6 +64,7 @@ void extent_server::commitTX()
     checkpoint();
   }
   _persister->append_log(entry);
+  return extent_protocol::OK;
 }
 
 void extent_server::checkpoint()
@@ -85,10 +87,12 @@ void extent_server::checkpoint()
       case chfs_command::CMD_PUT:
         im->write_file(it->inum, it->oldbuf.data(), it->oldsize);
         break;
-      case chfs_command::CMD_REMOVE:
-        im->alloc_inode(it->fileType);
-        im->write_file(it->inum, it->oldbuf.data(), it->oldsize);
+      case chfs_command::CMD_REMOVE:{
+        uint32_t newinode = im->alloc_inode(it->fileType);
+        im->write_file(newinode, it->oldbuf.data(), it->oldsize);
         break;
+      }
+        
       default:
         break;
       }
@@ -160,7 +164,7 @@ int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
   }
   _persister->append_log(entry);
 
-  printf("\textent server put buf size:%ld buf:%s", buf.size(), buf.data());
+  printf("\textent server put buf size:%ld", buf.size());
   im->write_file(id, cbuf, size);
 
   return extent_protocol::OK;
