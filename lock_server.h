@@ -14,7 +14,13 @@ class lock_server {
 
  protected:
   int nacquire;
-  std::map<lock_protocol::lockid_t,bool> lockMap;
+  struct holder{
+    int client;
+    pthread_t thread;
+    int acquireTime;
+    
+  };
+  std::map<lock_protocol::lockid_t,holder> lockMap;
   pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
   pthread_cond_t releasedLock = PTHREAD_COND_INITIALIZER;
 
@@ -22,8 +28,8 @@ class lock_server {
   lock_server();
   ~lock_server() {};
   lock_protocol::status stat(int clt, lock_protocol::lockid_t lid, int &);
-  lock_protocol::status acquire(int clt, lock_protocol::lockid_t lid, int &);
-  lock_protocol::status release(int clt, lock_protocol::lockid_t lid, int &);
+  lock_protocol::status acquire(int clt, lock_protocol::lockid_t lid, std::string stid, int &);
+  lock_protocol::status release(int clt, lock_protocol::lockid_t lid, std::string stid, int &);
 };
 
 #endif 

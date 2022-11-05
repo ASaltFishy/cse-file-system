@@ -172,7 +172,7 @@ int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 
 int extent_server::get(extent_protocol::extentid_t id, std::string &buf)
 {
-  printf("extent_server: get %lld\n", id);
+  printf("extent_server: get %lld ", id);
 
   id &= 0x7fffffff;
 
@@ -187,6 +187,7 @@ int extent_server::get(extent_protocol::extentid_t id, std::string &buf)
     buf.assign(cbuf, size);
     free(cbuf);
   }
+  printf("buf: %s\n",buf.data());
 
   return extent_protocol::OK;
 }

@@ -252,10 +252,11 @@ std::vector<command> &persister<command>::get_undolist(){
     for (int i = back; i >= 0; i--)
     {
         chfs_command temp = log_entries[i];
-        if (temp.id != chfs_command::latest_id)
-            break;
-        uncommitted_entries.insert(uncommitted_entries.begin(),log_entries.back());
-        log_entries.pop_back();
+        if (temp.id == chfs_command::latest_id){
+            uncommitted_entries.insert(uncommitted_entries.begin(),log_entries.back());
+            log_entries.pop_back();
+        }
+        
     }
     printf("persist——undo: get uncommitted entries size: %ld\n",uncommitted_entries.size());
     return uncommitted_entries;
@@ -309,9 +310,8 @@ std::vector<command> &persister<command>::restore_logdata()
     for (int i = back; i >= 0; i--)
     {
         chfs_command temp = log_entries[i];
-        if (temp.id != chfs_command::latest_id)
-            break;
-        log_entries.pop_back();
+        if (temp.id == chfs_command::latest_id)
+            log_entries.pop_back();
     }
     return log_entries;
 };

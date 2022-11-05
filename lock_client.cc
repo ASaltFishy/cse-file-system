@@ -32,7 +32,10 @@ lock_client::acquire(lock_protocol::lockid_t lid)
 {
 	// Your lab2B part2 code goes here
   int r;
-  lock_protocol::status ret = cl->call(lock_protocol::acquire, cl->id(), lid, r);
+  // printf("lock client ask for lock %lld\n",lid);
+  pthread_t tid = pthread_self();
+  std::string stid = std::to_string(tid);
+  lock_protocol::status ret = cl->call(lock_protocol::acquire, cl->id(), lid, stid, r);
   VERIFY (ret == lock_protocol::OK);
   return ret;
 }
@@ -42,7 +45,10 @@ lock_client::release(lock_protocol::lockid_t lid)
 {
 	// Your lab2B part2 code goes here
   int r;
-  lock_protocol::status ret = cl->call(lock_protocol::acquire, cl->id(), lid, r);
+  pthread_t tid = pthread_self();
+  std::string stid = std::to_string(tid);
+  lock_protocol::status ret = cl->call(lock_protocol::release, cl->id(), lid, stid, r);
   VERIFY (ret == lock_protocol::OK);
+  // printf("lock client release lock %lld\n",lid);
   return ret;
 }
