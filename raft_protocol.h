@@ -21,6 +21,10 @@ enum raft_rpc_status {
 class request_vote_args {
 public:
     // Lab3: Your code here
+    unsigned term;
+    unsigned candidateId;
+    unsigned LastLogIndex;
+    unsigned LastLogTerm;
 };
 
 marshall &operator<<(marshall &m, const request_vote_args &args);
@@ -29,6 +33,9 @@ unmarshall &operator>>(unmarshall &u, request_vote_args &args);
 class request_vote_reply {
 public:
     // Lab3: Your code here
+    unsigned trueTerm;
+    bool voteGranted; 
+
 };
 
 marshall &operator<<(marshall &m, const request_vote_reply &reply);
