@@ -29,6 +29,7 @@ int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
   
   const char * cbuf = buf.c_str();
   int size = buf.size();
+  printf("\textent server put buf size:%ld\n",buf.size());
   im->write_file(id, cbuf, size);
   
   return extent_protocol::OK;
