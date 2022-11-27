@@ -114,6 +114,8 @@ public:
     int term;
     bool success;
     int leader_id;
+    int conflictIndex;
+    int conflictTerm;
 
 };
 

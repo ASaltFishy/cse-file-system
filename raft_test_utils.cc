@@ -34,6 +34,7 @@ bool unit_test_suite::run_case(const std::string &part, const std::string &name,
     count++;
     return true;
   }
+  freopen("/dev/tty", "w", stdout);
   std::cout << "Test (" << part << "." << name
             << "): " << std::string(obj->message) << std::endl;
   static int clktck = -1;
@@ -44,6 +45,7 @@ bool unit_test_suite::run_case(const std::string &part, const std::string &name,
   start = times(&start_t);
   obj->body();
   end = times(&end_t);
+  freopen("/dev/tty", "w", stdout);
   std::cout << "Pass (" << part << "." << name
             << "). wall-time: " << (double)(end - start) / (double)clktck
             << "s, user-time: "
@@ -70,6 +72,8 @@ bool unit_test_suite::run_part_case(const std::string &spart,
 }
 
 bool unit_test_suite::run(int argc, char **argv) {
+  freopen("/dev/tty", "w", stdout);
+
   auto f = [=]() {
     if (argc == 1) {
       run_all();
@@ -96,6 +100,7 @@ bool unit_test_suite::run(int argc, char **argv) {
   start = times(&start_t);
   f();
   end = times(&end_t);
+  freopen("/dev/tty", "w", stdout);
   std::cout << "Pass " << passed << "/" << count
             << " tests. wall-time: " << (double)(end - start) / (double)clktck
             << "s, user-time: "

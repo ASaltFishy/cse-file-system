@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <thread>
 #include <stdarg.h>
+#include "assert.h" 
 
 #include "rpc.h"
 #include "raft_storage.h"
@@ -29,14 +30,14 @@ class raft
 //     {                          \
 //     } while (0);
 
-#define RAFT_LOG(fmt, args...)                                                                                   \
-    do                                                                                                           \
-    {                                                                                                            \
-        auto now =                                                                                               \
-            std::chrono::duration_cast<std::chrono::milliseconds>(                                               \
-                std::chrono::system_clock::now().time_since_epoch())                                             \
-                .count();                                                                                        \
-        printf("[%ld][%s:%d][node %d term %d] " fmt "\n", now, __FILE__, __LINE__, my_id, current_term, ##args); \
+#define RAFT_LOG(fmt, args...)                                                                                            \
+    do                                                                                                                    \
+    {                                                                                                                     \
+        auto now =                                                                                                        \
+            std::chrono::duration_cast<std::chrono::milliseconds>(                                                        \
+                std::chrono::system_clock::now().time_since_epoch())                                                      \
+                .count();                                                                                                 \
+        printf("[%ld][%s:%d][node %d term %d] " fmt "\n", now, __FILE__, __LINE__, my_id, storage->current_term, ##args); \
     } while (0);
 
 public:
@@ -88,7 +89,7 @@ private:
         leader
     };
     raft_role role;
-    int current_term;
+    // int current_term;
     int leader_id;
 
     std::thread *background_election;
@@ -98,7 +99,7 @@ private:
 
     // Your code here:
     /* for leader election*/
-    int votedFor;
+    // int votedFor;
     int lastLogTerm;
     int lastLogIndex;
     int voteCount;
@@ -109,9 +110,9 @@ private:
 
     /* for commit */
     int commitIndex;
-    std::vector<log_entry<command>> logs;
-    std::vector<int> prevLogIndex = std::vector<int>(num_nodes(), 0);
-    int prevLogTerm;
+    // std::vector<log_entry<command>> logs;
+    std::vector<int> prevLogIndex;
+    // int prevLogTerm;
     int appliedIndex;
 
     /* ----Persistent state on all server----  */
@@ -170,7 +171,6 @@ raft<state_machine, command>::raft(rpcs *server, std::vector<rpcc *> clients, in
                                                                                                                                                background_ping(nullptr),
                                                                                                                                                background_commit(nullptr),
                                                                                                                                                background_apply(nullptr),
-                                                                                                                                               current_term(0),
                                                                                                                                                role(follower)
 {
     thread_pool = new ThrPool(32);
@@ -182,12 +182,10 @@ raft<state_machine, command>::raft(rpcs *server, std::vector<rpcc *> clients, in
 
     // Your code here:
     // Do the initialization
-    votedFor = -1;
     lastLogIndex = 0;
     lastLogTerm = 0;
     voteCount = 0;
-    prevLogTerm = 0;
-    int clientNum = rpc_clients.size();
+    commitIndex = appliedIndex = 0;
 }
 
 template <typename state_machine, typename command>
@@ -221,6 +219,11 @@ raft<state_machine, command>::~raft()
 template <typename state_machine, typename command>
 void raft<state_machine, command>::stop()
 {
+    RAFT_LOG("stop");
+
+    storage->flush();
+    RAFT_LOG("commitIndex: %d, appliedIndex: %d", commitIndex, appliedIndex);
+
     stopped.store(true);
     background_ping->join();
     background_election->join();
@@ -238,7 +241,7 @@ bool raft<state_machine, command>::is_stopped()
 template <typename state_machine, typename command>
 bool raft<state_machine, command>::is_leader(int &term)
 {
-    term = current_term;
+    term = storage->current_term;
     return role == leader;
 }
 
@@ -246,16 +249,19 @@ template <typename state_machine, typename command>
 void raft<state_machine, command>::start()
 {
     // Lab3: Your code here
-    electionTimeout = getElectionTimeout();
-    log_entry<command> empty_entry;
-    empty_entry.index = 0;
-    empty_entry.term = 0;
-    logs.push_back(empty_entry);
-    commitIndex = appliedIndex = 0;
-
     RAFT_LOG("start");
+    electionTimeout = getElectionTimeout();
+    storage->restore();
+    assert(!storage->logs.empty());
+    lastLogIndex = storage->logs.back().index;
+    lastLogTerm = storage->logs.back().term;
+    prevLogIndex = std::vector<int>(num_nodes(), 0);
+
     lastRPCTime = getTime();
     srand(time(NULL));
+
+    RAFT_LOG("commitIndex: %d, appliedIndex: %d", commitIndex, appliedIndex);
+
     this->background_election = new std::thread(&raft::run_background_election, this);
     this->background_ping = new std::thread(&raft::run_background_ping, this);
     this->background_commit = new std::thread(&raft::run_background_commit, this);
@@ -272,18 +278,18 @@ bool raft<state_machine, command>::new_command(command cmd, int &term, int &inde
         RAFT_LOG("add a new command to index: %d", lastLogIndex + 1);
         log_entry<command> newEntry;
         newEntry.cmd = cmd;
-        newEntry.term = current_term;
+        newEntry.term = storage->current_term;
         newEntry.index = ++lastLogIndex;
-        lastLogTerm = current_term;
-        logs.push_back(newEntry);
-        term = current_term;
+        lastLogTerm = storage->current_term;
+        storage->logs.push_back(newEntry);
+        term = storage->current_term;
         index = newEntry.index;
         mtx.unlock();
         return true;
     }
     else
     {
-        term = current_term;
+        term = storage->current_term;
         mtx.unlock();
         return false;
     }
@@ -306,32 +312,32 @@ int raft<state_machine, command>::request_vote(request_vote_args args, request_v
 {
     // Lab3: Your code here
     mtx.lock();
-    reply.trueTerm = current_term;
+    reply.trueTerm = storage->current_term;
     reply.leader_id = leader_id;
-    if (args.term < current_term)
+    if (args.term < storage->current_term)
     {
-        RAFT_LOG("reject %d's vote request", args.candidateId);
+        // RAFT_LOG("reject %d's vote request", args.candidateId);
         reply.voteGranted = false;
         mtx.unlock();
         return 0;
     }
 
-    if (args.term > current_term)
+    if (args.term > storage->current_term)
     {
-        RAFT_LOG("become follower of new term and vote now", args.candidateId);
+        RAFT_LOG("find higher term when requested vote");
         newTerm(args.term, leader_id);
     }
-    if ((votedFor == -1 || votedFor == args.candidateId) && (args.LastLogTerm > lastLogTerm || (args.LastLogTerm == lastLogTerm && args.LastLogIndex >= lastLogIndex)))
+    if ((storage->votedFor == -1 || storage->votedFor == args.candidateId) && (args.LastLogTerm > lastLogTerm || (args.LastLogTerm == lastLogTerm && args.LastLogIndex >= lastLogIndex)))
     {
         // after voting, update the election timeout
-        RAFT_LOG("grant vote to %d", args.candidateId);
+        // RAFT_LOG("grant vote to %d", args.candidateId);
         lastRPCTime = getTime();
-        votedFor = args.candidateId;
+        storage->votedFor = args.candidateId;
         reply.voteGranted = true;
     }
     else
     {
-        RAFT_LOG("reject %d's vote request", args.candidateId);
+        // RAFT_LOG("reject %d's vote request", args.candidateId);
         reply.voteGranted = false;
     }
     mtx.unlock();
@@ -345,7 +351,7 @@ void raft<state_machine, command>::handle_request_vote_reply(int target, const r
     mtx.lock();
     if (role == candidate)
     {
-        if (reply.trueTerm > current_term)
+        if (reply.trueTerm > storage->current_term)
         {
             newTerm(reply.trueTerm, reply.leader_id);
             RAFT_LOG("handle_request_vote_reply: there's already a leader, become follower now");
@@ -355,12 +361,17 @@ void raft<state_machine, command>::handle_request_vote_reply(int target, const r
             if (reply.voteGranted)
             {
                 voteCount++;
-                RAFT_LOG("recieve vote from %d, voteCount: %d", target, voteCount);
+                // RAFT_LOG("recieve vote from %d, voteCount: %d", target, voteCount);
                 if (voteCount > rpc_clients.size() / 2)
                 {
                     role = leader;
                     leader_id = my_id;
-                    RAFT_LOG("voted to be leader now");
+                    int size = prevLogIndex.size();
+                    for (int i = 0; i < size; i++)
+                    {
+                        prevLogIndex[i] = commitIndex;
+                    }
+                    RAFT_LOG("!!!LEADAERn NOW!!!");
                 }
             }
         }
@@ -375,20 +386,21 @@ int raft<state_machine, command>::append_entries(append_entries_args<command> ar
     // Lab3: Your code here
     mtx.lock();
     // laeder's ping
-    if (arg.term > current_term)
+    reply.success = false;
+    if (arg.term > storage->current_term)
     {
         lastRPCTime = getTime();
         RAFT_LOG("get heart beat from a new leader %d", arg.leaderId);
         newTerm(arg.term, arg.leaderId);
-        reply.term = current_term;
+        reply.term = storage->current_term;
         reply.leader_id = leader_id;
     }
-    else if (arg.term == current_term)
+    else if (arg.term == storage->current_term)
     {
         if (role == follower)
         {
             lastRPCTime = getTime();
-            RAFT_LOG("get normal ping from leader");
+            RAFT_LOG("%d's ping",arg.leaderId);
         }
         if (role == candidate)
         {
@@ -397,14 +409,13 @@ int raft<state_machine, command>::append_entries(append_entries_args<command> ar
             role = follower;
             leader_id = arg.leaderId;
         }
-        reply.term = current_term;
+        reply.term = storage->current_term;
         reply.leader_id = leader_id;
     }
     else
     {
         // just ignore
-        reply.success = false;
-        reply.term = current_term;
+        reply.term = storage->current_term;
         reply.leader_id = leader_id;
         mtx.unlock();
         return 0;
@@ -413,42 +424,56 @@ int raft<state_machine, command>::append_entries(append_entries_args<command> ar
     // leader's append cmd
     if (!arg.empty)
     {
-        int size = logs.size();
+        int size = storage->logs.size();
         int newLogSize = arg.entries.size();
         int prevIndex = arg.prevLogIndex;
-        RAFT_LOG("append prevIndex: %d, fellow's size: %d", prevIndex, size);
+        // RAFT_LOG("append prevIndex: %d, fellow's size: %d", prevIndex, size);
         if (size <= prevIndex)
         {
-            RAFT_LOG("follow's size is smaller than leader's prev");
+            // RAFT_LOG("follow's size is smaller than leader's prev");
             reply.success = false;
+            reply.conflictIndex = storage->logs.size() - 1;
+            reply.conflictTerm = -1;
         }
-        else if (logs[prevIndex].term != arg.prevLogTerm)
+        else if (storage->logs[prevIndex].term != arg.prevLogTerm)
         {
-            RAFT_LOG("mismatch bewtween follow's and leader's entry");
-            for (int i = 0; i < size - prevIndex; i++)
-            {
-                logs.pop_back();
-            }
             reply.success = false;
+            int cfTerm = storage->logs[prevIndex].term;
+            reply.conflictTerm = cfTerm;
+            bool find = false;
+            for (int i = prevIndex - 1; i >= 0; i--)
+            {
+                if (storage->logs[i].term != cfTerm)
+                {
+                    reply.conflictIndex = i + 1;
+                    find = true;
+                    break;
+                }
+            }
+            if (!find)
+            {
+                reply.conflictIndex = 0;
+            }
         }
         else
         {
             // append new logs
-            RAFT_LOG("append entry to follower, size: %d", newLogSize - prevIndex - 1);
             reply.success = true;
             if (arg.leaderId != my_id)
             {
-                int i;
-                for (i = prevIndex + 1; i < newLogSize; i++)
+                if (size != 0 && newLogSize!=0)
                 {
-                    logs.push_back(arg.entries[i]);
+                    RAFT_LOG("APPEND begin index: %d size: %d", prevIndex + 1, newLogSize);
+                    storage->logs.erase(storage->logs.begin() + prevIndex + 1, storage->logs.end());
+                    storage->logs.insert(storage->logs.end(), arg.entries.begin(), arg.entries.end());
                 }
-                lastLogIndex = logs.back().index;
-                lastLogTerm = logs.back().term;
+                lastLogIndex = storage->logs.back().index;
+                lastLogTerm = storage->logs.back().term;
                 // have to correct old stubborn leader
                 if (arg.leaderCommit > commitIndex)
                 {
-                    commitIndex = std::min(arg.leaderCommit, i - 1);
+                    commitIndex = std::min(arg.leaderCommit, lastLogIndex);
+                    RAFT_LOG("change commitIndex to: %d", commitIndex);
                 }
             }
         }
@@ -462,7 +487,7 @@ void raft<state_machine, command>::handle_append_entries_reply(int node, const a
 {
     // Lab3: Your code here
     mtx.lock();
-    if (reply.term > current_term)
+    if (reply.term > storage->current_term)
     {
         RAFT_LOG("find new leader, become follower");
         newTerm(reply.term, reply.leader_id);
@@ -470,13 +495,28 @@ void raft<state_machine, command>::handle_append_entries_reply(int node, const a
     // for append log
     if (arg.empty == false && reply.success == false)
     {
-        RAFT_LOG("follows' entry out of date, change prevIndex to: %d", arg.prevLogIndex - 1);
-        if (arg.prevLogIndex >= 1)
-            prevLogIndex[node] = arg.prevLogIndex - 1;
+        prevLogIndex[node] = reply.conflictIndex;
+        if (reply.conflictTerm != -1)
+        {
+            int i;
+            for (i = arg.prevLogIndex - 1; i >= 0; i--)
+            {
+                if (storage->logs[i].term == reply.conflictTerm)
+                {
+                    prevLogIndex[node] = i;
+                    RAFT_LOG("follows' entry out of date, change prevIndex to: %d", i);
+                    break;
+                }
+            }
+        }
+        // RAFT_LOG("follows' entry out of date, change prevIndex to: %d", arg.prevLogIndex - 1);
+        // if (arg.prevLogIndex >= 1)
+        //     prevLogIndex[node] = arg.prevLogIndex - 1;
     }
     if (reply.success == true)
     {
-        prevLogIndex[node] = arg.entries.size() - 1;
+        // RAFT_LOG("append reply: new preLogIndex: %d", arg.entries.size() - 1);
+        prevLogIndex[node] = arg.prevLogIndex + arg.entries.size();
     }
     mtx.unlock();
     return;
@@ -506,7 +546,7 @@ void raft<state_machine, command>::send_request_vote(int target, request_vote_ar
     }
     else
     {
-        RAFT_LOG("-------RPC FAILS-------");
+        // RAFT_LOG("------- %d RPC FAILS-------", target);
         // RPC fails
     }
 }
@@ -521,7 +561,7 @@ void raft<state_machine, command>::send_append_entries(int target, append_entrie
     }
     else
     {
-        RAFT_LOG("-------RPC FAILS-------");
+        // RAFT_LOG("------- %d RPC FAILS-------", target);
         // RPC fails
     }
 }
@@ -536,7 +576,7 @@ void raft<state_machine, command>::send_install_snapshot(int target, install_sna
     }
     else
     {
-        RAFT_LOG("-------RPC FAILS-------");
+        // RAFT_LOG("------- %d RPC FAILS-------", target);
         // RPC fails
     }
 }
@@ -554,7 +594,6 @@ void raft<state_machine, command>::run_background_election()
 
     // Work for followers and candidates.
 
-    RAFT_LOG("run_bg_election");
     while (true)
     {
         if (is_stopped())
@@ -568,10 +607,10 @@ void raft<state_machine, command>::run_background_election()
             time_t timeAfter = current_time - lastRPCTime;
             if (timeAfter > getElectionTimeout())
             {
-                RAFT_LOG("electTimeout! begin an election");
+                // RAFT_LOG("electTimeout! begin an election");
                 newElection();
                 request_vote_args args;
-                args.term = current_term;
+                args.term = storage->current_term;
                 args.candidateId = my_id;
                 args.LastLogIndex = lastLogIndex;
                 args.LastLogTerm = lastLogTerm;
@@ -580,7 +619,7 @@ void raft<state_machine, command>::run_background_election()
             }
         }
         mtx.unlock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(120));
     }
     return;
 }
@@ -600,30 +639,24 @@ void raft<state_machine, command>::run_background_commit()
         mtx.lock();
         if (role == leader)
         {
-            int tempCMIndex = getCommitIndex();
-            if (tempCMIndex != logs.size() - 1)
+            append_entries_args<command> args;
+            args.empty = false;
+            args.leaderId = my_id;
+            args.leaderCommit = commitIndex;
+            args.term = storage->current_term;
+            for (int i = 0; i < rpc_clients.size(); i++)
             {
-                append_entries_args<command> args;
-                args.empty = false;
-                args.entries = logs;
-                args.leaderId = my_id;
-                args.leaderCommit = commitIndex;
-                args.term = current_term;
-                args.prevLogTerm = prevLogTerm;
-                for (int i = 0; i < rpc_clients.size(); i++)
+                if (prevLogIndex[i] != storage->logs.size() - 1)
                 {
                     args.prevLogIndex = prevLogIndex[i];
+                    args.prevLogTerm = storage->logs[args.prevLogIndex].term;
+                    args.entries = std::vector<log_entry<command>>(storage->logs.begin() + args.prevLogIndex + 1, storage->logs.end());
                     thread_pool->addObjJob(this, &raft::send_append_entries, i, args);
                 }
             }
-            else
-            {
-                RAFT_LOG("leader: finish raplica now");
-                commitIndex = tempCMIndex;
-            }
         }
         mtx.unlock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
     return;
@@ -642,11 +675,39 @@ void raft<state_machine, command>::run_background_apply()
             return;
         // Lab3: Your code here:
         mtx.lock();
-        if(commitIndex>appliedIndex){
-            state->apply_log(logs[++appliedIndex].cmd);
+        if (role == leader)
+        {
+            // only when the current_term's log is replicated then the CmtIdx changes
+            if (lastLogTerm == storage->current_term)
+            {
+                int tempCMIndex = getCommitIndex();
+                if (tempCMIndex > appliedIndex && storage->logs[tempCMIndex].term == storage->current_term)
+                {
+                    // change commit index and send to its'followers to apply them
+                    commitIndex = tempCMIndex;
+                    append_entries_args<command> args;
+                    args.empty = false;
+                    args.leaderId = my_id;
+                    args.leaderCommit = commitIndex;
+                    args.term = storage->current_term;
+                    for (int i = 0; i < rpc_clients.size(); i++)
+                    {
+                        args.prevLogIndex = prevLogIndex[i];
+                        args.prevLogTerm = storage->logs[args.prevLogIndex].term;
+                        args.entries = std::vector<log_entry<command>>(storage->logs.begin() + args.prevLogIndex + 1, storage->logs.end());
+                        thread_pool->addObjJob(this, &raft::send_append_entries, i, args);
+                    }
+                }
+            }
+        }
+        // listen to the commitIndex
+        if (commitIndex > appliedIndex)
+        {
+            RAFT_LOG("APPLY commitIndex: %d, appliedIndex: %d", commitIndex, appliedIndex);
+            state->apply_log(storage->logs[++appliedIndex].cmd);
         }
         mtx.unlock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     return;
 }
@@ -669,13 +730,28 @@ void raft<state_machine, command>::run_background_ping()
             RAFT_LOG("%d send ping now", my_id);
             append_entries_args<command> args;
             args.empty = true;
-            args.term = current_term;
+            args.term = storage->current_term;
             args.leaderId = my_id;
             for (int i = 0; i < rpc_clients.size(); i++)
                 thread_pool->addObjJob(this, &raft::send_append_entries, i, args);
+            // append_entries_args<command> args;
+            // args.empty = false;
+            // args.leaderId = my_id;
+            // args.leaderCommit = commitIndex;
+            // args.term = storage->current_term;
+            // for (int i = 0; i < rpc_clients.size(); i++)
+            // {
+            //     if (prevLogIndex[i] != storage->logs.size()-1)
+            //     {
+            //         args.prevLogIndex = prevLogIndex[i];
+            //         args.prevLogTerm = storage->logs[args.prevLogIndex].term;
+            //         args.entries = std::vector<log_entry<command>>(storage->logs.begin() + args.prevLogIndex + 1, storage->logs.end());
+            //         thread_pool->addObjJob(this, &raft::send_append_entries, i, args);
+            //     }
+            // }
         }
         mtx.unlock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(150));
     }
 
     return;
@@ -706,9 +782,9 @@ template <typename state_machine, typename command>
 void raft<state_machine, command>::newTerm(int term, int leaderId)
 {
     role = follower;
-    current_term = term;
+    storage->current_term = term;
     leader_id = leaderId;
-    votedFor = -1;
+    storage->votedFor = -1;
     voteCount = 0;
     electionTimeout = getElectionTimeout();
 }
@@ -717,9 +793,9 @@ template <typename state_machine, typename command>
 void raft<state_machine, command>::newElection()
 {
     role = candidate;
-    current_term++;
+    storage->current_term++;
     voteCount = 0;
-    votedFor = my_id;
+    storage->votedFor = my_id;
     electionTimeout = getElectionTimeout();
 }
 

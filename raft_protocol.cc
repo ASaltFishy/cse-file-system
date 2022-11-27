@@ -35,13 +35,13 @@ unmarshall &operator>>(unmarshall &u, request_vote_reply &reply) {
 
 marshall &operator<<(marshall &m, const append_entries_reply &args) {
     // Lab3: Your code here
-    m<<args.term<<args.success<<args.leader_id;
+    m<<args.term<<args.success<<args.leader_id<<args.conflictIndex<<args.conflictTerm;
     return m;
 }
 
 unmarshall &operator>>(unmarshall &m, append_entries_reply &args) {
     // Lab3: Your code here
-    m>>args.term>>args.success>>args.leader_id;
+    m>>args.term>>args.success>>args.leader_id>>args.conflictIndex>>args.conflictTerm;
     return m;
 }
 
