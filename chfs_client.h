@@ -44,7 +44,7 @@ class chfs_client {
 
  public:
   chfs_client(std::string);
-
+  ~chfs_client();
   bool islink(inum);
   bool isfile(inum);
   bool isdir(inum);

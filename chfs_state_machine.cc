@@ -1,11 +1,15 @@
 #include "chfs_state_machine.h"
-chfs_command_raft::chfs_command_raft() {}
+chfs_command_raft::chfs_command_raft()
+{
+    res = std::make_shared<result>();
+}
 // for CREATE
 chfs_command_raft::chfs_command_raft(command_type _type, uint32_t file_type)
 {
     // Lab3: Your code here
     cmd_tp = _type;
     type = file_type;
+    res = std::make_shared<result>();
 }
 
 // for GET GETATTR REMOVE
@@ -14,6 +18,7 @@ chfs_command_raft::chfs_command_raft(command_type _type, extent_protocol::extent
     // Lab3: Your code here
     cmd_tp = _type;
     id = _id;
+    res = std::make_shared<result>();
 }
 
 // for PUT
@@ -23,6 +28,7 @@ chfs_command_raft::chfs_command_raft(command_type _type, extent_protocol::extent
     cmd_tp = _type;
     id = _id;
     buf = _buf;
+    res = std::make_shared<result>();
 }
 
 chfs_command_raft::chfs_command_raft(const chfs_command_raft &cmd) : cmd_tp(cmd.cmd_tp), type(cmd.type), id(cmd.id), buf(cmd.buf), res(cmd.res)
@@ -124,7 +130,6 @@ unmarshall &operator>>(unmarshall &u, chfs_command_raft &cmd)
 {
     // Lab3: Your code here
     int cmd_tp_num;
-    chfs_command_raft::command_type temp;
     u >> cmd_tp_num;
     cmd.setCmdType(cmd_tp_num);
     u >> cmd.type >> cmd.id >> cmd.buf;
@@ -204,25 +209,28 @@ void chfs_state_machine::apply_log(raft_command &cmd)
     {
     case chfs_command_raft::command_type::CMD_CRT:
         es.create(chfs_cmd.type, chfs_cmd.res->id);
+        printf("state_machine: create file, return id %d\n",chfs_cmd.res->id);
         break;
     case chfs_command_raft::command_type::CMD_GET:
         es.get(chfs_cmd.id, chfs_cmd.res->buf);
+        printf("state_machine: get file %d, return %s\n",chfs_cmd.id,chfs_cmd.res->buf);
         break;
     case chfs_command_raft::command_type::CMD_GETA:
         es.getattr(chfs_cmd.id, chfs_cmd.res->attr);
+        printf("state_machine: getattr file %d\n",chfs_cmd.id);
         break;
     case chfs_command_raft::command_type::CMD_PUT:
     {
-
         int r;
-        es.put(chfs_cmd.id, chfs_cmd.buf,r);
+        es.put(chfs_cmd.id, chfs_cmd.buf, r);
+        printf("state_machine: put %s in file %d\n",chfs_cmd.buf,chfs_cmd.id);
         break;
-                
     }
     case chfs_command_raft::command_type::CMD_RMV:
     {
         int r;
-        es.remove(chfs_cmd.id,r);
+        es.remove(chfs_cmd.id, r);
+        printf("state_machine: remove file %d\n",chfs_cmd.id);
         break;
     }
     default:

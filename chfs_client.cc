@@ -22,6 +22,10 @@ chfs_client::chfs_client(std::string extent_dst)
         printf("error init root dir\n"); // XYB: init root dir
 }
 
+chfs_client::~chfs_client(){
+    delete ec;
+}
+
 // transfer the inum in string to unsigned long
 chfs_client::inum
 chfs_client::n2i(std::string n)
@@ -69,6 +73,7 @@ bool chfs_client::isdir(inum inum)
     // Oops! is this still correct when you implement symlink?
     extent_protocol::attr a;
 
+    printf("isdir: before getattr\n");
     if (ec->getattr(inum, a) != extent_protocol::OK)
     {
         printf("error getting attr\n");
@@ -168,6 +173,7 @@ int chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_ou
      * note: lookup is what you need to check if file exist;
      * after create file or dir, you must remember to modify the parent infomation.
      */
+    printf("chfs_client: create file %s\n",name);
     bool found = false;
     r = lookup(parent, name, found, ino_out);
     if (r == IOERR)
@@ -177,7 +183,7 @@ int chfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_ou
     }
     if (found)
         return EXIST;
-
+    
     r = ec->create(extent_protocol::T_FILE, ino_out);
     std::string buf;
     r = ec->get(parent, buf);
@@ -260,6 +266,7 @@ int chfs_client::readdir(inum dir, std::list<dirent> &list)
     }
 
     std::string buf;
+    printf("reddir--get\n");
     ec->get(dir, buf);
     struct dirent temp;
     unsigned long name_start = 0, name_end = buf.find('/');

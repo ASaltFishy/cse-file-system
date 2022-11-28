@@ -33,6 +33,7 @@ int main(int argc, char *argv[]) {
     server.reg(extent_protocol::put, &es_rg, &extent_server_dist::put);
     server.reg(extent_protocol::remove, &es_rg, &extent_server_dist::remove);
     server.reg(extent_protocol::create, &es_rg, &extent_server_dist::create);
+    printf("extent server register rpc call suceefully\n");
 
     while (1)
         sleep(1000);

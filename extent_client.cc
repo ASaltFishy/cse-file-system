@@ -9,11 +9,14 @@
 
 extent_client::extent_client(std::string dst) {
     sockaddr_in dstsock;
+     printf("begin to make_sockaddr\n");
     make_sockaddr(dst.c_str(), &dstsock);
+    printf("begin to new a rpcc\n");
     cl = new rpcc(dstsock);
     if (cl->bind() != 0) {
         printf("extent_client: bind failed\n");
     }
+    printf("finish construct setent_client\n");
 }
 
 extent_protocol::status
@@ -46,6 +49,7 @@ extent_client::put(extent_protocol::extentid_t eid, std::string buf) {
     int r;
     extent_protocol::status ret = extent_protocol::OK;
     ret = cl->call(extent_protocol::put, eid, buf,  r);
+    printf("call put, return %d\n",ret);
     VERIFY(ret == extent_protocol::OK);
     return ret;
 }
