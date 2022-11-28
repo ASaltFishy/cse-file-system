@@ -169,7 +169,7 @@ public:
 template <typename state_machine, typename command>
 raft_group<state_machine, command>::raft_group(int num,
                                                const char *storage_dir) {
-    // printf("raft_group created begin\n");
+    printf("raft_group created begin\n");
     nodes.resize(num, nullptr);
     servers = create_random_rpc_servers(num);
     clients.resize(num);
@@ -179,7 +179,7 @@ raft_group<state_machine, command>::raft_group(int num,
     // ASSERT(ret == 0 || , "cannot rmdir " << ret);
     ASSERT(mkdir(storage_dir, 0777) >= 0,
            "cannot create dir " << std::string(storage_dir));
-    // printf("raft_group created-0\n");
+    printf("raft_group created-0\n");
            for (int i = 0; i < num; i++) {
                std::string dir_name(storage_dir);
                dir_name = dir_name + "/raft_storage_" + std::to_string(i);
@@ -195,10 +195,10 @@ raft_group<state_machine, command>::raft_group(int num,
                states[i] = state;
                storages[i] = storage;
            }
-    // printf("raft_group created-1\n");
+    printf("raft_group created-1\n");
     for (int i = 0; i < num; i++)
         nodes[i]->start();
-    // printf("raft_group created\n");
+    printf("raft_group created\n");
 }
 
 template <typename state_machine, typename command>

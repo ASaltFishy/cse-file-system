@@ -30,7 +30,7 @@ public:
     // Lab3: your code here
     // You may add your own member variables if you need
     command_type cmd_tp;
-    uint32_t type = 0;
+    uint32_t type;
     extent_protocol::extentid_t id;
     std::string buf;
     std::shared_ptr<result> res;

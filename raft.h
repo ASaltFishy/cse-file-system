@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <thread>
 #include <stdarg.h>
-#include "assert.h" 
+#include "assert.h"
 
 #include "rpc.h"
 #include "raft_storage.h"
@@ -25,20 +25,20 @@ class raft
 
     friend class thread_pool;
 
-    // #define RAFT_LOG(fmt, args...) \
-//     do                         \
-//     {                          \
-//     } while (0);
-
-#define RAFT_LOG(fmt, args...)                                                                                            \
-    do                                                                                                                    \
-    {                                                                                                                     \
-        auto now =                                                                                                        \
-            std::chrono::duration_cast<std::chrono::milliseconds>(                                                        \
-                std::chrono::system_clock::now().time_since_epoch())                                                      \
-                .count();                                                                                                 \
-        printf("[%ld][%s:%d][node %d term %d] " fmt "\n", now, __FILE__, __LINE__, my_id, storage->current_term, ##args); \
+    #define RAFT_LOG(fmt, args...) \
+    do                         \
+    {                          \
     } while (0);
+
+    // #define RAFT_LOG(fmt, args...)\
+//     do\
+//     { \
+//         auto now \
+//             std::chrono::duration_cast<std::chrono::milliseconds>\
+//                 std::chrono::system_clock::now().time_since_epoch  \
+//                 .count\
+//         printf("[%ld][%s:%d][node %d term %d] " fmt "\n", now, __FILE__, __LINE__, my_id, storage->current_term, ##args); \
+//     } while (0);
 
 public:
     raft(
@@ -225,6 +225,7 @@ void raft<state_machine, command>::stop()
     RAFT_LOG("commitIndex: %d, appliedIndex: %d", commitIndex, appliedIndex);
 
     stopped.store(true);
+
     background_ping->join();
     background_election->join();
     background_commit->join();
@@ -252,7 +253,8 @@ void raft<state_machine, command>::start()
     RAFT_LOG("start");
     electionTimeout = getElectionTimeout();
     storage->restore();
-    assert(!storage->logs.empty());
+    // assert(!storage->logs.empty());
+
     lastLogIndex = storage->logs.back().index;
     lastLogTerm = storage->logs.back().term;
     prevLogIndex = std::vector<int>(num_nodes(), 0);
@@ -400,7 +402,7 @@ int raft<state_machine, command>::append_entries(append_entries_args<command> ar
         if (role == follower)
         {
             lastRPCTime = getTime();
-            RAFT_LOG("%d's ping",arg.leaderId);
+            RAFT_LOG("%d's ping", arg.leaderId);
         }
         if (role == candidate)
         {
@@ -461,7 +463,7 @@ int raft<state_machine, command>::append_entries(append_entries_args<command> ar
             reply.success = true;
             if (arg.leaderId != my_id)
             {
-                if (size != 0 && newLogSize!=0)
+                if (size != 0 && newLogSize != 0)
                 {
                     RAFT_LOG("APPEND begin index: %d size: %d", prevIndex + 1, newLogSize);
                     storage->logs.erase(storage->logs.begin() + prevIndex + 1, storage->logs.end());

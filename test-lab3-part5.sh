@@ -6,7 +6,7 @@
 ./stop.sh >/dev/null 2>&1
 score=0
 
-./start.sh >/dev/null 2>&1
+./start.sh >client.log 2>&1
 test_if_has_mount(){
 	mount | grep -q "chfs_client"
 	if [ $? -ne 0 ];

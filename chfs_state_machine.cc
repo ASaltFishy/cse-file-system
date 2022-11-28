@@ -212,11 +212,19 @@ void chfs_state_machine::apply_log(raft_command &cmd)
         es.getattr(chfs_cmd.id, chfs_cmd.res->attr);
         break;
     case chfs_command_raft::command_type::CMD_PUT:
-        es.put(chfs_cmd.id, chfs_cmd.buf);
+    {
+
+        int r;
+        es.put(chfs_cmd.id, chfs_cmd.buf,r);
         break;
+                
+    }
     case chfs_command_raft::command_type::CMD_RMV:
-        es.remove(chfs_cmd.id);
+    {
+        int r;
+        es.remove(chfs_cmd.id,r);
         break;
+    }
     default:
         break;
     }

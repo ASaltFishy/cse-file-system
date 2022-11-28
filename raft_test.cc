@@ -9,7 +9,7 @@ typedef raft_group<list_state_machine, list_command> list_raft_group;
 
 TEST_CASE(part1, leader_election, "Initial election")
 {
-    freopen("raft.log", "w", stdout);
+    // freopen("raft.log", "w", stdout);
 
     int num_nodes = 3;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -33,7 +33,7 @@ TEST_CASE(part1, leader_election, "Initial election")
 
 TEST_CASE(part1, re_election, "Election after network failure")
 {
-    freopen("raft.log", "w", stdout);
+    // freopen("raft.log", "w", stdout);
 
     int num_nodes = 5;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -76,7 +76,7 @@ TEST_CASE(part1, re_election, "Election after network failure")
 
 TEST_CASE(part2, basic_agree, "Basic Agreement")
 {
-    freopen("raft1.log", "w", stdout);
+    // freopen("raft1.log", "w", stdout);
 
     int num_nodes = 3;
     list_raft_group *group = new list_raft_group(3);
@@ -96,7 +96,7 @@ TEST_CASE(part2, basic_agree, "Basic Agreement")
 
 TEST_CASE(part2, fail_agree, "Fail Agreement")
 {
-    freopen("raft2.log", "w", stdout);
+    // freopen("raft2.log", "w", stdout);
 
     int num_nodes = 3;
     list_raft_group *group = new list_raft_group(3);
@@ -122,7 +122,7 @@ TEST_CASE(part2, fail_agree, "Fail Agreement")
 
 TEST_CASE(part2, fail_no_agree, "Fail No Agreement")
 {
-    freopen("raft3.log", "w", stdout);
+    // freopen("raft3.log", "w", stdout);
 
     int num_nodes = 5;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -174,7 +174,7 @@ std::ostream &operator<<(std::ostream &out, const std::vector<int> &vec)
 
 TEST_CASE(part2, concurrent_start, "Concurrent starts")
 {
-    freopen("raft4.log", "w", stdout);
+    // freopen("raft4.log", "w", stdout);
 
     int num_nodes = 3;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -270,7 +270,7 @@ TEST_CASE(part2, concurrent_start, "Concurrent starts")
 
 TEST_CASE(part2, rejoin, "Rejoin of partitioned leader")
 {
-    freopen("raft5.log", "w", stdout);
+    // freopen("raft5.log", "w", stdout);
 
     int num_nodes = 3;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -310,7 +310,7 @@ TEST_CASE(part2, rejoin, "Rejoin of partitioned leader")
 TEST_CASE(part2, backup,
           "Leader backs up quickly over incorrect follower logs")
 {
-    freopen("raft6.log", "w", stdout);
+    // freopen("raft6.log", "w", stdout);
 
     int num_nodes = 5;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -380,7 +380,7 @@ TEST_CASE(part2, backup,
 
 TEST_CASE(part2, rpc_count, "RPC counts aren't too high")
 {
-    freopen("raft7.log", "w", stdout);
+    // freopen("raft7.log", "w", stdout);
 
     int num_nodes = 3;
     int value = 1;
@@ -467,7 +467,7 @@ TEST_CASE(part2, rpc_count, "RPC counts aren't too high")
 
 TEST_CASE(part3, persist1, "Basic persistence")
 {
-    freopen("raft1.log", "w", stdout);
+    // freopen("raft1.log", "w", stdout);
 
     int num_nodes = 3;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -515,7 +515,7 @@ TEST_CASE(part3, persist1, "Basic persistence")
 
 TEST_CASE(part3, persist2, "More persistence")
 {
-    freopen("raft2.log", "w", stdout);
+    // freopen("raft2.log", "w", stdout);
 
     int num_nodes = 5;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -563,7 +563,7 @@ TEST_CASE(part3, persist2, "More persistence")
 TEST_CASE(part3, persist3,
           "Partitioned leader and one follower crash, leader restarts")
 {
-    freopen("raft3.log", "w", stdout);
+    // freopen("raft3.log", "w", stdout);
 
     int num_nodes = 3;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -641,7 +641,7 @@ void figure_8_test(list_raft_group *group, int num_tries = 1000)
 
 TEST_CASE(part3, figure8, "Case ppt63")
 {
-    freopen("raft4.log", "w", stdout);
+    // freopen("raft4.log", "w", stdout);
 
     int num_nodes = 5;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -651,7 +651,7 @@ TEST_CASE(part3, figure8, "Case ppt63")
 
 TEST_CASE(part3, unreliable_agree, "Agreement under unreliable network")
 {
-    freopen("raft5.log", "w", stdout);
+    // freopen("raft5.log", "w", stdout);
 
     int num_nodes = 5;
     list_raft_group *group = new list_raft_group(num_nodes);
@@ -680,7 +680,7 @@ TEST_CASE(part3, unreliable_agree, "Agreement under unreliable network")
 TEST_CASE(part3, unreliable_figure_8,
           "Case ppt63 under unreliable network")
 {
-    freopen("raft6.log", "w", stdout);
+    // freopen("raft6.log", "w", stdout);
 
     int num_nodes = 5;
     list_raft_group *group = new list_raft_group(num_nodes);
