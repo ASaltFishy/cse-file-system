@@ -2,6 +2,7 @@
 chfs_command_raft::chfs_command_raft()
 {
     res = std::make_shared<result>();
+    cmd_tp = CMD_NONE;
 }
 // for CREATE
 chfs_command_raft::chfs_command_raft(command_type _type, uint32_t file_type)
@@ -97,10 +98,10 @@ void chfs_command_raft::serialize(char *buf_out, int size) const
 void chfs_command_raft::deserialize(const char *buf_in, int size)
 {
     // Lab3: Your code here
+    setCmdType(buf_in[0] & 0xff);
     switch (cmd_tp)
     {
     case CMD_CRT:
-        setCmdType(buf_in[0] & 0xff);
         transferBufTo32(buf_in + 1);
         break;
     case CMD_PUT:
@@ -108,7 +109,6 @@ void chfs_command_raft::deserialize(const char *buf_in, int size)
     case CMD_GET:
     case CMD_GETA:
     case CMD_RMV:
-        setCmdType(buf_in[0] & 0xff);
         transferBufTo64(buf_in + 1);
         break;
     case CMD_NONE:

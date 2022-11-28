@@ -26,7 +26,7 @@ int extent_server_dist::create(uint32_t type, extent_protocol::extentid_t &id)
     if (!cmd.res->done)
     {
         ASSERT(
-            cmd.res->cv.wait_until(lock, cmd.res->start + std::chrono::seconds(3)) == std::cv_status::no_timeout,
+            cmd.res->cv.wait_until(lock, cmd.res->start + std::chrono::seconds(30)) == std::cv_status::no_timeout,
             "extent_server_dist::create command timeout");
         printf("CREATE cmd done\n");
     }
@@ -51,7 +51,7 @@ int extent_server_dist::put(extent_protocol::extentid_t id, std::string buf, int
     if (!cmd.res->done)
     {
         ASSERT(
-            cmd.res->cv.wait_until(lock, cmd.res->start + std::chrono::seconds(3)) == std::cv_status::no_timeout,
+            cmd.res->cv.wait_until(lock, cmd.res->start + std::chrono::seconds(30)) == std::cv_status::no_timeout,
             "extent_server_dist::create command timeout");
         printf("PUT cmd done\n");
     }
@@ -70,7 +70,7 @@ int extent_server_dist::get(extent_protocol::extentid_t id, std::string &buf)
     if (!cmd.res->done)
     {
         ASSERT(
-            cmd.res->cv.wait_until(lock, cmd.res->start + std::chrono::seconds(3)) == std::cv_status::no_timeout,
+            cmd.res->cv.wait_until(lock, cmd.res->start + std::chrono::seconds(30)) == std::cv_status::no_timeout,
             "extent_server_dist::create command timeout");
         printf("GET cmd done\n");
     }
@@ -93,7 +93,7 @@ int extent_server_dist::getattr(extent_protocol::extentid_t id, extent_protocol:
     if (!cmd.res->done)
     {
         ASSERT(
-            cmd.res->cv.wait_until(lock, cmd.res->start + std::chrono::seconds(3)) == std::cv_status::no_timeout,
+            cmd.res->cv.wait_until(lock, cmd.res->start + std::chrono::seconds(30)) == std::cv_status::no_timeout,
             "extent_server_dist::create command timeout");
         printf("GETATTR cmd done\n");
     }
@@ -113,7 +113,7 @@ int extent_server_dist::remove(extent_protocol::extentid_t id, int &)
     if (!cmd.res->done)
     {
         ASSERT(
-            cmd.res->cv.wait_until(lock, cmd.res->start + std::chrono::seconds(3)) == std::cv_status::no_timeout,
+            cmd.res->cv.wait_until(lock, cmd.res->start + std::chrono::seconds(30)) == std::cv_status::no_timeout,
             "extent_server_dist::create command timeout");
         printf("REMOVE cmd done\n");
     }

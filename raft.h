@@ -25,20 +25,20 @@ class raft
 
     friend class thread_pool;
 
-    // #define RAFT_LOG(fmt, args...) \
-    // do                         \
-    // {                          \
-    // } while (0);
-
-#define RAFT_LOG(fmt, args...)                                                                                            \
-    do                                                                                                                    \
-    {                                                                                                                     \
-        auto now =                                                                                                        \
-            std::chrono::duration_cast<std::chrono::milliseconds>(                                                        \
-                std::chrono::system_clock::now().time_since_epoch        ())                                                      \
-                .count();                                                                                                 \
-        printf("[%ld][%s:%d][node %d term %d] " fmt "\n", now, __FILE__, __LINE__, my_id, storage->current_term, ##args); \
+    #define RAFT_LOG(fmt, args...) \
+    do                         \
+    {                          \
     } while (0);
+
+// #define RAFT_LOG(fmt, args...)                                                                                            \
+//     do                                                                                                                    \
+//     {                                                                                                                     \
+//         auto now =                                                                                                        \
+//             std::chrono::duration_cast<std::chrono::milliseconds>(                                                        \
+//                 std::chrono::system_clock::now().time_since_epoch())                                                      \
+//                 .count();                                                                                                 \
+//         printf("[%ld][%s:%d][node %d term %d] " fmt "\n", now, __FILE__, __LINE__, my_id, storage->current_term, ##args); \
+//     } while (0);
 
 public:
     raft(
@@ -257,7 +257,7 @@ void raft<state_machine, command>::start()
 
     lastLogIndex = storage->logs.back().index;
     lastLogTerm = storage->logs.back().term;
-    prevLogIndex = std::vector<int>(num_nodes(), storage->logs.size()-1);
+    prevLogIndex = std::vector<int>(num_nodes(), 0);
 
     lastRPCTime = getTime();
     srand(time(NULL));
@@ -701,8 +701,11 @@ void raft<state_machine, command>::run_background_apply()
         // listen to the commitIndex
         if (commitIndex > appliedIndex)
         {
-            state->apply_log(storage->logs[++appliedIndex].cmd);
-            RAFT_LOG("APPLY commitIndex: %d, appliedIndex: %d", commitIndex, appliedIndex);
+            if (appliedIndex < storage->logs.size()-1)
+            {
+                state->apply_log(storage->logs[++appliedIndex].cmd);
+                RAFT_LOG("APPLY commitIndex: %d, appliedIndex: %d", commitIndex, appliedIndex);
+            }
         }
         mtx.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(10));

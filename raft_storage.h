@@ -54,7 +54,7 @@ void raft_storage<command>::flush() {
         outFile.write((char *)&current_term,sizeof(int));
         outFile.write((char *)&votedFor,sizeof(int));
         int size = logs.size();
-        printf("flush: log size:%d\n",size);
+        // printf("flush: log size:%d\n",size);
         outFile.write((char *)&size,sizeof(int));
         for(log_entry<command> item : logs){
             int cmdSize = item.cmd.size();
@@ -83,7 +83,7 @@ void raft_storage<command>::restore() {
         logFile.read((char *)&votedFor,sizeof(int));
         int size;
         logFile.read((char *)&size,sizeof(int));
-        printf("restore: log size:%d\n",size);
+        // printf("restore: log size:%d\n",size);
         
         logs.clear();
         for(int i=0;i<size;i++){
@@ -103,7 +103,7 @@ void raft_storage<command>::restore() {
             delete[] buf;
         }
     }else{
-        printf("logfile is empty, no need to restore\n");
+        // printf("logfile is empty, no need to restore\n");
     }
     logFile.close();
     mtx.unlock();

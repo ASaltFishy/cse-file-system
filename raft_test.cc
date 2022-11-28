@@ -515,7 +515,6 @@ TEST_CASE(part3, persist1, "Basic persistence")
 
 TEST_CASE(part3, persist2, "More persistence")
 {
-    // freopen("raft2.log", "w", stdout);
 
     int num_nodes = 5;
     list_raft_group *group = new list_raft_group(num_nodes);
