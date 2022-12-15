@@ -51,13 +51,16 @@ int test_persist_chfs() {
         mode_t mode = 0644;
         chfs_client::inum inum;
         const char *p = filename.c_str();
+        printf("before isdir\n");
         chfs_c->isdir(1);
+        printf("before create\n");
         chfs_c->create(parent, p, mode, inum);
 
         if ((int)inum == 0) {
             iprint("error creating file\n");
             return 1;
         }
+        printf("after create\n");
         if (chfs_c->getfile(inum, fin) != chfs_client::xxstatus::OK) {
             iprint("error getting attr, return not OK\n");
             return 2;

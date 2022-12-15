@@ -6,6 +6,8 @@
 #include "extent_protocol.h"
 #include <map>
 #include <string>
+#include <chrono>
+#include <mutex>
 #include "raft.h"
 #include "extent_server.h"
 #include "raft_test_utils.h"
