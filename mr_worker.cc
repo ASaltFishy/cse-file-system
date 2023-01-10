@@ -17,10 +17,28 @@
 
 using namespace std;
 
-struct KeyVal {
-    string key;
-    string val;
+// struct KeyVal {
+//     string key;
+//     string val;
+// };
+
+typedef struct KeyVal
+{
+	KeyVal(string key_, string val_) : key(key_), val(val_) {}
+
+	string key;
+	string val;
 };
+
+int strHash(const string &str)
+{
+	unsigned int hashVal = 0;
+	for (char ch : str)
+	{
+		hashVal = hashVal * 131 + (int)ch;
+	}
+	return hashVal % REDUCER_COUNT;
+}
 
 //
 // The map function is called once for each file of input. The first
@@ -32,7 +50,26 @@ struct KeyVal {
 vector<KeyVal> Map(const string &filename, const string &content)
 {
 	// Copy your code from mr_sequential.cc here.
-
+	vector<KeyVal> ret;
+	map<string, int> wordMap;
+	string word;
+	for (char i : content)
+	{
+		if (i >= 'a' && i <= 'z' || i >= 'A' && i <= 'Z')
+		{
+			word += i;
+		}
+		else if (word.size())
+		{
+			wordMap[word]++;
+			word.clear();
+		}
+	}
+	for (auto kv : wordMap)
+	{
+		ret.push_back(KeyVal(kv.first, to_string(kv.second)));
+	}
+	return ret;
 }
 
 //
@@ -40,24 +77,30 @@ vector<KeyVal> Map(const string &filename, const string &content)
 // map tasks, with a list of all the values created for that key by
 // any map task.
 //
-string Reduce(const string &key, const vector < string > &values)
+string Reduce(const string &key, const vector<string> &values)
 {
-    // Copy your code from mr_sequential.cc here.
-
+	// Copy your code from mr_sequential.cc here.
+	int size = values.size();
+	int totalCount = 0;
+	for (int i = 0; i < size; i++)
+	{
+		totalCount += stoi(values[i]);
+	}
+	return to_string(totalCount);
 }
-
 
 typedef vector<KeyVal> (*MAPF)(const string &key, const string &value);
 typedef string (*REDUCEF)(const string &key, const vector<string> &values);
 
-class Worker {
+class Worker
+{
 public:
 	Worker(const string &dst, const string &dir, MAPF mf, REDUCEF rf);
 
 	void doWork();
 
 private:
-	void doMap(int index, const vector<string> &filenames);
+	void doMap(int index, const string &filename);
 	void doReduce(int index);
 	void doSubmit(mr_tasktype taskType, int index);
 
@@ -70,7 +113,6 @@ private:
 	REDUCEF reducef;
 };
 
-
 Worker::Worker(const string &dst, const string &dir, MAPF mf, REDUCEF rf)
 {
 	this->basedir = dir;
@@ -80,28 +122,86 @@ Worker::Worker(const string &dst, const string &dir, MAPF mf, REDUCEF rf)
 	sockaddr_in dstsock;
 	make_sockaddr(dst.c_str(), &dstsock);
 	this->cl = new rpcc(dstsock);
-	if (this->cl->bind() < 0) {
+	if (this->cl->bind() < 0)
+	{
 		printf("mr worker: call bind error\n");
 	}
 }
 
-void Worker::doMap(int index, const vector<string> &filenames)
+void Worker::doMap(int index, const string &filename)
 {
 	// Lab4: Your code goes here.
+	string filepath = basedir + filename;
+	string content;
+	string prefix = basedir + "mr-" + to_string(index) + "-";
+	vector<KeyVal> result;
+	vector<stringstream> output;
+	for (int i = 0; i < REDUCER_COUNT; i++)
+	{
+		output.push_back(stringstream());
+	}
 
+	getline(ifstream(filepath), content, '\0');
+	result = mapf(filename, content);
+
+	for (auto kv : result)
+	{
+		int redIndex = strHash(kv.key);
+		output[redIndex] << kv.key << " " << kv.val << " ";
+	}
+
+	for (int i = 0; i < REDUCER_COUNT; i++)
+	{
+		string intermidiate = prefix + to_string(i);
+		ofstream file(intermidiate);
+		string content = output[i].str();
+		file.write(content.data(), content.size());
+		file.close();
+	}
 }
 
 void Worker::doReduce(int index)
 {
 	// Lab4: Your code goes here.
+	map<string, vector<string>> kvset;
+	int i = 0;
+	while (true)
+	{
+		string filepath = basedir + "mr-" + to_string(i) + "-" + to_string(index);
+		// my_log("worker reduce:	try to open %s\n",filepath.data());
+		ifstream file(filepath.data());
+		string buf, key, val;
+		if (!file.good()){
+			my_log("worker:	end of map index\n");
+			break;
+		}
+		getline(file, buf, '\0');
+		stringstream content(buf);
+		while (content >> key >> val)
+		{
+			kvset[key].push_back(val);
+		}
+		i++;
+	}
+	stringstream mr_out;
+	for(auto kv:kvset){
+		string totalValue = Reduce(kv.first,kv.second);
+		mr_out<<kv.first<<" "<<totalValue<<"\n";
+	}
+	string outpath = basedir+"mr-out-"+to_string(index);
 
+	ofstream outfile(outpath,ofstream::out);
+	my_log("worker reduce:	try to open out file %s",outpath.data());
+	outfile.write(mr_out.str().data(),mr_out.str().size());
+	outfile.close();
 }
 
 void Worker::doSubmit(mr_tasktype taskType, int index)
 {
 	bool b;
 	mr_protocol::status ret = this->cl->call(mr_protocol::submittask, taskType, index, b);
-	if (ret != mr_protocol::OK) {
+	if (ret != mr_protocol::OK)
+	{
 		fprintf(stderr, "submit task failed\n");
 		exit(-1);
 	}
@@ -109,7 +209,8 @@ void Worker::doSubmit(mr_tasktype taskType, int index)
 
 void Worker::doWork()
 {
-	for (;;) {
+	for (;;)
+	{
 
 		//
 		// Lab4: Your code goes here.
@@ -118,23 +219,45 @@ void Worker::doWork()
 		// if mr_tasktype::REDUCE, then doReduce and doSubmit
 		// if mr_tasktype::NONE, meaning currently no work is needed, then sleep
 		//
-
+		mr_protocol::AskTaskResponse reply;
+		mr_protocol::status ret = this->cl->call(mr_protocol::asktask, 0, reply);
+		if (ret != mr_protocol::OK)
+		{
+			fprintf(stderr, "ask task failed\n");
+			exit(-1);
+		}
+		switch (reply.taskType)
+		{
+		case mr_tasktype::MAP:
+			doMap(reply.index, reply.fileName);
+			doSubmit(mr_tasktype::MAP, reply.index);
+			break;
+		case mr_tasktype::REDUCE:
+			doReduce(reply.index);
+			doSubmit(mr_tasktype::REDUCE, reply.index);
+			break;
+		case mr_tasktype::NONE:
+			sleep(1);
+			break;
+		default:
+			break;
+		}
 	}
 }
 
 int main(int argc, char **argv)
 {
-	if (argc != 3) {
+	if (argc != 3)
+	{
 		fprintf(stderr, "Usage: %s <coordinator_listen_port> <intermediate_file_dir> \n", argv[0]);
 		exit(1);
 	}
 
 	MAPF mf = Map;
 	REDUCEF rf = Reduce;
-	
+
 	Worker w(argv[1], argv[2], mf, rf);
 	w.doWork();
 
 	return 0;
 }
-

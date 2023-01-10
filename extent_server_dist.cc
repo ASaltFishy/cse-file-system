@@ -37,7 +37,7 @@ int extent_server_dist::create(uint32_t type, extent_protocol::extentid_t &id)
 int extent_server_dist::put(extent_protocol::extentid_t id, std::string buf, int &)
 {
     // Lab3: your code here
-    printf("----PUT: id-%d \n", id);
+    printf("----PUT: id-%lld \n", id);
     chfs_command_raft cmd(chfs_command_raft::command_type::CMD_PUT, id, buf);
     int term, index;
 
@@ -60,7 +60,7 @@ int extent_server_dist::put(extent_protocol::extentid_t id, std::string buf, int
 
 int extent_server_dist::get(extent_protocol::extentid_t id, std::string &buf)
 {
-    printf("----GET: id-%d\n",id);
+    printf("----GET: id-%lld\n",id);
     chfs_command_raft cmd(chfs_command_raft::command_type::CMD_GET, id);
     int term, index;
 
@@ -80,7 +80,7 @@ int extent_server_dist::get(extent_protocol::extentid_t id, std::string &buf)
 
 int extent_server_dist::getattr(extent_protocol::extentid_t id, extent_protocol::attr &a)
 {
-    printf("----GETATTR: id-%d\n",id);
+    printf("----GETATTR: id-%lld\n",id);
     chfs_command_raft cmd(chfs_command_raft::command_type::CMD_GETA, id);
     int term, index;
 

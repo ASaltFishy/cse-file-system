@@ -209,11 +209,11 @@ void chfs_state_machine::apply_log(raft_command &cmd)
     {
     case chfs_command_raft::command_type::CMD_CRT:
         es.create(chfs_cmd.type, chfs_cmd.res->id);
-        printf("state_machine: create file, return id %d\n",chfs_cmd.res->id);
+        printf("state_machine: create file, return id %lld\n",chfs_cmd.res->id);
         break;
     case chfs_command_raft::command_type::CMD_GET:
         es.get(chfs_cmd.id, chfs_cmd.res->buf);
-        printf("state_machine: get file %d, return %s\n",chfs_cmd.id,chfs_cmd.res->buf);
+        printf("state_machine: get file %lld, return %s\n",chfs_cmd.id,chfs_cmd.res->buf);
         break;
     case chfs_command_raft::command_type::CMD_GETA:
         es.getattr(chfs_cmd.id, chfs_cmd.res->attr);
